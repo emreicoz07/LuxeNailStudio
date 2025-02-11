@@ -17,42 +17,52 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary-100 to-primary-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-200 via-primary-100 to-primary-50">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md"
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] w-full max-w-md mx-4"
       >
-        <h1 className="text-3xl font-secondary text-center mb-8">Welcome Back</h1>
+        <h1 className="text-4xl font-secondary font-semibold text-center mb-8 text-text-primary">
+          Welcome Back
+        </h1>
         
         <form onSubmit={handleSubmit}>
           <motion.div
-            whileFocus={{ scale: 1.02 }}
-            className="space-y-4"
+            className="space-y-5"
           >
-            <div>
+            <motion.div
+              whileFocus={{ scale: 1.01 }}
+              transition={{ duration: 0.2 }}
+            >
               <input
                 type="email"
                 placeholder="Email"
                 autoFocus
-                className="input"
+                className="w-full px-4 py-3 rounded-xl border border-primary-100 focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none transition-all duration-200"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
-            </div>
+            </motion.div>
             
             <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                className="input pr-10"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
+              <motion.div
+                whileFocus={{ scale: 1.01 }}
+                transition={{ duration: 0.2 }}
+              >
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  className="w-full px-4 py-3 rounded-xl border border-primary-100 focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none transition-all duration-200 pr-10"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+              </motion.div>
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-secondary hover:text-primary-500 transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-secondary hover:text-primary-500 transition-colors duration-200"
               >
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
@@ -62,15 +72,17 @@ const LoginPage = () => {
           <div className="text-right mt-2">
             <Link 
               to="/forgot-password" 
-              className="text-primary-500 hover:text-primary-600 text-sm"
+              className="text-primary-500 hover:text-primary-600 text-sm font-medium transition-colors duration-200"
             >
               Forgot Password?
             </Link>
           </div>
 
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            className="btn btn-primary w-full mt-6"
+            whileHover={{ scale: 1.02, backgroundColor: '#FF147B' }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="w-full px-6 py-3 mt-6 bg-primary-500 text-white rounded-xl font-medium shadow-sm hover:shadow-md transition-all duration-200"
             type="submit"
           >
             Sign In

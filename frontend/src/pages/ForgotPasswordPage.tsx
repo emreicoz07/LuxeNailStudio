@@ -13,11 +13,12 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary-100 to-primary-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-200 via-primary-100 to-primary-50">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md mx-4"
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] w-full max-w-md mx-4"
       >
         <h1 className="text-3xl font-secondary text-center mb-4">Reset Password</h1>
         

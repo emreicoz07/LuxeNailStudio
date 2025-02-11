@@ -19,10 +19,13 @@ const Navbar: React.FC = () => {
     <nav className="fixed w-full bg-white shadow-md z-50">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="font-accent text-3xl text-primary-500">Luxe</span>
-            <span className="font-secondary text-xl">Nail Studio</span>
+          {/* Updated Logo */}
+          <Link to="/" className="flex flex-col items-start">
+            <span className="font-accent text-3xl text-primary-500 leading-none">Fifi's</span>
+            <div className="flex items-baseline space-x-1">
+              <span className="font-secondary text-xl">Nail Studio</span>
+              <span className="font-accent text-sm text-primary-400">by Semiha</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
