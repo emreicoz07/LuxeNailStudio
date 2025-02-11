@@ -8,6 +8,9 @@ import GalleryPage from './pages/Gallery';
 import AboutPage from './pages/About';
 import ContactPage from './pages/Contact';
 import BookingPage from './pages/Booking';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 
 const App: React.FC = () => {
   return (
@@ -22,6 +25,9 @@ const App: React.FC = () => {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/appointments" element={<BookingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           </Routes>
         </main>
         <Footer />

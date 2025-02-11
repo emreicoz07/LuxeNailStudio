@@ -36,11 +36,16 @@ module.exports = {
           primary: '#1F2937',
           secondary: '#6B7280',
         },
+        pink: {
+          50: '#FFF5F8',
+        },
       },
       fontFamily: {
         primary: ['Poppins', 'sans-serif'],
         secondary: ['Playfair Display', 'serif'],
         accent: ['Great Vibes', 'cursive'],
+        'playfair': ['"Playfair Display"', 'serif'],
+        'poppins': ['Poppins', 'sans-serif'],
       },
     },
   },

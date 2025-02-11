@@ -40,12 +40,20 @@ const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
-            <Link
-              to="/appointments"
-              className="btn btn-primary"
-            >
-              Book Now
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link
+                to="/login"
+                className="font-medium text-text-secondary hover:text-primary-500 transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                to="/appointments"
+                className="btn btn-primary"
+              >
+                Book Now
+              </Link>
+            </div>
           </div>
 
           {/* Mobile menu button */}
@@ -84,6 +92,13 @@ const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
+            <Link
+              to="/login"
+              className="block px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-primary-500 hover:bg-primary-50"
+              onClick={() => setIsOpen(false)}
+            >
+              Login
+            </Link>
             <Link
               to="/appointments"
               className="block px-3 py-2 text-base font-medium text-white bg-primary-500 rounded-md hover:bg-primary-600"
