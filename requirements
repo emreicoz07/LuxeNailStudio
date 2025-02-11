@@ -136,3 +136,127 @@ Payments	(Optional) Stripe or PayPal integration
 SEO & Performance	Lazy loading, caching, optimized API calls
 Testing	Jest, Integration Tests, API Tests
 Deployment	CI/CD, Docker, Vercel/Netlify, AWS RDS
+
+REGISTER : DESIGN
+You are a professional web application designed for a nail studio. Your goal is to create a seamless and user-friendly registration process. 
+
+Ask the user for the following details in a clear and engaging manner:
+
+1️⃣ **Full Name** - "Please enter your full name."  
+   - Must be between 2 and 50 characters  
+   - Only letters allowed  
+
+2️⃣ **Email Address** - "Please enter your email address (e.g., name@example.com)."  
+   - Must be a valid email format  
+   - Should not be already registered  
+
+3️⃣ **Phone Number (Optional)** - "Would you like to receive appointment updates? Please enter your phone number (e.g., +1 555 555 5555)."  
+   - If provided, it must be a valid phone number  
+
+4️⃣ **Password** - "Create a secure password (at least 8 characters, including one uppercase letter, one lowercase letter, and one special character)."  
+   - Minimum 8 characters  
+   - Must contain at least one uppercase letter, one lowercase letter, and one special character  
+
+5️⃣ **Confirm Password** - "Please confirm your password by entering it again."  
+   - Must match the previously entered password  
+
+6️⃣ **Subscribe to nail care tips and promotions (Optional)**  
+   - "Would you like to receive exclusive nail care tips and promotions?"  
+   - Options: "Yes, sign me up!" or "No, thanks."  
+
+7️⃣ **Terms & Conditions Agreement (Mandatory)**  
+   - "To continue, please confirm that you agree to our [Terms & Conditions](#)."  
+   - The user must accept this before proceeding.  
+
+Ensure proper input validation and provide friendly error messages if necessary. Guide the user through a smooth and responsive registration process.  
+
+REGISTER : BACKEND AND FRONTEND
+
+You are an expert AI developer responsible for creating a **seamless user registration system** for a **Professional Nail Studio Web Application**. Your task is to **design and implement both backend and frontend** functionalities to ensure a **secure, efficient, and scalable registration process**.
+
+---
+## 🛠 **Project Specifications**
+- **Frontend:** React (TypeScript), Redux Toolkit, Tailwind CSS, Axios
+- **Backend:** Nest.js (TypeScript), MongoDB (Mongoose), Prisma ORM
+- **Authentication:** JWT-based authentication
+- **Validation:** Zod or Joi for backend, React Hook Form with Yup for frontend
+- **Testing:** Jest for unit tests, Supertest for API tests
+
+---
+## 📌 **User Registration Requirements**
+Create a **fully functional user registration system** with the following fields:
+
+1️⃣ **Full Name**  
+   - Required: ✅ Yes  
+   - Validation: Must be between **2 and 50 characters**  
+   - Error message: `"Full name must be between 2 and 50 characters and contain only letters."`
+
+2️⃣ **Email Address**  
+   - Required: ✅ Yes  
+   - Validation: Must be a valid **email format** (e.g., `user@example.com`)  
+   - Check for uniqueness in **MongoDB**  
+   - Error message: `"Please enter a valid and unique email address."`
+
+3️⃣ **Phone Number (Optional)**  
+   - Required: ❌ No (Optional)  
+   - Validation: If provided, must match **international phone format** (e.g., `+1 555 555 5555`)  
+   - Error message: `"Please enter a valid phone number."`
+
+4️⃣ **Password**  
+   - Required: ✅ Yes  
+   - Validation:  
+     - **Minimum 8 characters**  
+     - Must contain **one uppercase letter, one lowercase letter, one special character**  
+   - Hash password using **bcrypt** before storing in MongoDB  
+   - Error message: `"Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a special character."`
+
+5️⃣ **Confirm Password**  
+   - Required: ✅ Yes  
+   - Validation: Must match the previously entered password  
+   - Error message: `"Passwords do not match."`
+
+6️⃣ **Subscribe to Nail Care Tips and Promotions (Optional)**  
+   - Required: ❌ No  
+   - Options:  
+     - ✅ `"Yes, sign me up!"`  
+     - ❌ `"No, thanks."`
+
+7️⃣ **Terms & Conditions Agreement**  
+   - Required: ✅ Yes  
+   - Validation: Must be **checked** before proceeding  
+   - Error message: `"You must agree to the Terms & Conditions before registering."`
+
+---
+## 🚀 **Backend Implementation (Nest.js & MongoDB)**
+- **Create a REST API `/auth/register` endpoint**
+- **Use Mongoose schemas with Zod for validation**
+- **Encrypt passwords with bcrypt before storing**
+- **Generate JWT token upon successful registration**
+- **Send verification email (Optional)**
+- **Log all user registration attempts using Winston Logger**
+
+---
+## 🎨 **Frontend Implementation (React & Tailwind)**
+- **Use React Hook Form & Yup for validation**
+- **Show real-time input validation errors**
+- **Use Axios for API calls**
+- **Store JWT token in HttpOnly cookies**
+- **Implement a loading state for API requests**
+- **Ensure the form is fully responsive**
+- **Include success/error notifications using Toasts**
+
+---
+## 🔍 **Testing & Security**
+- **Unit Tests:** Write Jest tests for API controllers & services  
+- **Integration Tests:** Use Supertest to validate API responses  
+- **Rate Limiting:** Implement Express Rate Limit to prevent spam registrations  
+- **Error Handling:** Ensure proper exception handling with custom error messages  
+- **Security:** Prevent **XSS**, **SQL Injection**, and **Brute Force Attacks**  
+
+---
+## ✅ **Final Deliverables**
+- **A fully functional and responsive registration form**
+- **Secure authentication system using JWT**
+- **Well-documented API with Swagger**
+- **100% test coverage for registration process**
+- **Deployment-ready backend and frontend code**

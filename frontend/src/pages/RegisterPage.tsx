@@ -1,41 +1,91 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useForm } from 'react-hook-form';
+import * as yup from 'yup';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { authService } from '../services/authService';
+
+interface RegisterFormInputs {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  phone?: string;
+  subscribe: boolean;
+  agreeToTerms: boolean;
+}
+
+const schema = yup.object().shape({
+  name: yup
+    .string()
+    .required('Full name is required')
+    .min(2, 'Name must be at least 2 characters')
+    .max(50, 'Name must not exceed 50 characters')
+    .matches(/^[A-Za-z\s]+$/, 'Name can only contain letters'),
+  
+  email: yup
+    .string()
+    .required('Email is required')
+    .email('Please enter a valid email address'),
+  
+  phone: yup
+    .string()
+    .nullable()
+    .matches(/^\+?[1-9]\d{1,14}$/, 'Please enter a valid phone number'),
+  
+  password: yup
+    .string()
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .matches(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character'),
+  
+  confirmPassword: yup
+    .string()
+    .required('Please confirm your password')
+    .oneOf([yup.ref('password')], 'Passwords must match'),
+  
+  subscribe: yup.boolean(),
+  agreeToTerms: yup
+    .boolean()
+    .oneOf([true], 'You must agree to the Terms & Conditions')
+});
 
 const RegisterPage = () => {
-  const { register, error, clearError } = useAuth();
+  const { register: registerUser, error: authError, clearError } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    subscribe: false,
-    agreeToTerms: false,
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterFormInputs>();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      // Handle password mismatch
-      return;
-    }
-    
+  const onSubmit = async (data: RegisterFormInputs) => {
     try {
-      await register(
-        formData.name,
-        formData.email,
-        formData.phone,
-        formData.password
-      );
-      navigate('/');
-    } catch (err) {
-      console.error('Registration failed:', err);
+      setIsSubmitting(true);
+      const registrationData = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+        phone: data.phone || undefined,
+        subscribe: data.subscribe || false,
+        agreeToTerms: data.agreeToTerms
+      };
+      
+      await authService.register(registrationData);
+      toast.success('Registration successful! Please check your email to verify your account.');
+      navigate('/login');
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error(error.response?.data?.message || 'Registration failed');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -43,160 +93,182 @@ const RegisterPage = () => {
     return () => clearError();
   }, [clearError]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-200 via-primary-100 to-primary-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] w-full max-w-md mx-4"
+        className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
       >
-        <h1 className="text-3xl font-secondary text-center mb-8">Create Account</h1>
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+        </div>
         
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-500 rounded-lg text-sm">
-            {error}
+        {authError && (
+          <div className="mb-6 p-4 bg-red-50 text-red-500 rounded-lg text-sm">
+            {authError}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Name Input */}
-          <motion.div whileFocus={{ scale: 1.02 }}>
-            <input
-              type="text"
-              name="name"
-              placeholder="Full Name"
-              autoFocus
-              className="input"
-              value={formData.name}
-              onChange={handleInputChange}
-              required
-            />
-          </motion.div>
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
+          <div className="rounded-md shadow-sm space-y-4">
+            <div>
+              <label htmlFor="name" className="sr-only">Full Name</label>
+              <input
+                {...register("name", {
+                  required: "Name is required",
+                  minLength: { value: 2, message: "Name must be at least 2 characters" },
+                  maxLength: { value: 50, message: "Name must not exceed 50 characters" },
+                  pattern: {
+                    value: /^[A-Za-z\s]+$/,
+                    message: "Name can only contain letters"
+                  }
+                })}
+                type="text"
+                className="input"
+                placeholder="Full Name"
+              />
+              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+            </div>
 
-          {/* Email Input */}
-          <motion.div whileFocus={{ scale: 1.02 }}>
-            <input
-              type="email"
-              name="email"
-              placeholder="Email Address"
-              className="input"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
-          </motion.div>
+            <div>
+              <label htmlFor="email" className="sr-only">Email address</label>
+              <input
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address"
+                  }
+                })}
+                type="email"
+                className="input"
+                placeholder="Email address"
+              />
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+            </div>
 
-          {/* Phone Input */}
-          <motion.div whileFocus={{ scale: 1.02 }}>
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Phone Number"
-              className="input"
-              value={formData.phone}
-              onChange={handleInputChange}
-              required
-            />
-          </motion.div>
+            <div>
+              <label htmlFor="phone" className="sr-only">Phone Number (Optional)</label>
+              <input
+                {...register("phone", {
+                  pattern: {
+                    value: /^\+?[1-9]\d{1,14}$/,
+                    message: "Invalid phone number format"
+                  }
+                })}
+                type="tel"
+                className="input"
+                placeholder="Phone Number (Optional)"
+              />
+              {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>}
+            </div>
 
-          {/* Password Input */}
-          <motion.div whileFocus={{ scale: 1.02 }} className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              className="input pr-10"
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-secondary hover:text-primary-500 transition-colors"
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </motion.div>
+            <div className="relative">
+              <label htmlFor="password" className="sr-only">Password</label>
+              <input
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: { value: 8, message: "Password must be at least 8 characters" },
+                  pattern: {
+                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>])/,
+                    message: "Password must contain at least one uppercase letter, one lowercase letter, and one special character"
+                  }
+                })}
+                type={showPassword ? "text" : "password"}
+                className="input"
+                placeholder="Password"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+            </div>
+          </div>
 
-          {/* Confirm Password Input */}
-          <motion.div whileFocus={{ scale: 1.02 }} className="relative">
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              className="input pr-10"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-secondary hover:text-primary-500 transition-colors"
-            >
-              {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </motion.div>
+          <div className="space-y-1">
+            <label className="text-sm text-gray-600">Please confirm your password</label>
+            <div className="relative">
+              <input
+                {...register('confirmPassword')}
+                type={showConfirmPassword ? "text" : "password"}
+                className="input pr-10"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-500"
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+            {errors.confirmPassword && (
+              <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+            )}
+          </div>
 
-          {/* Subscribe Checkbox */}
-          <div className="flex items-center">
+          <div className="flex items-start space-x-3">
             <input
+              {...register('subscribe')}
               type="checkbox"
               id="subscribe"
-              name="subscribe"
-              className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-              checked={formData.subscribe}
-              onChange={handleInputChange}
+              className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
             />
-            <label htmlFor="subscribe" className="ml-2 text-sm text-text-secondary">
-              Subscribe to nail care tips and promotions
+            <label htmlFor="subscribe" className="text-sm text-gray-600">
+              Would you like to receive exclusive nail care tips and promotions?
             </label>
           </div>
 
-          {/* Terms Checkbox */}
-          <div className="flex items-center">
+          <div className="flex items-start space-x-3">
             <input
+              {...register('agreeToTerms')}
               type="checkbox"
               id="agreeToTerms"
-              name="agreeToTerms"
-              className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-              checked={formData.agreeToTerms}
-              onChange={handleInputChange}
-              required
+              className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
             />
-            <label htmlFor="agreeToTerms" className="ml-2 text-sm text-text-secondary">
+            <label htmlFor="agreeToTerms" className="text-sm text-gray-600">
               I agree to the{' '}
               <Link to="/terms" className="text-primary-500 hover:text-primary-600">
                 Terms & Conditions
               </Link>
             </label>
           </div>
+          {errors.agreeToTerms && (
+            <p className="text-red-500 text-sm">{errors.agreeToTerms.message}</p>
+          )}
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            className="btn btn-primary w-full"
-            type="submit"
-          >
-            Create Account
-          </motion.button>
+          <div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Creating account...' : 'Create account'}
+            </button>
+          </div>
         </form>
 
-        <p className="mt-8 text-center text-sm text-text-secondary">
+        <p className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <Link 
-            to="/login" 
-            className="text-primary-500 hover:text-primary-600 font-medium"
-          >
+          <Link to="/login" className="text-primary-500 hover:text-primary-600">
             Sign in
           </Link>
         </p>

@@ -1,10 +1,16 @@
 import { registerAs } from '@nestjs/config';
+import mongoose from 'mongoose';
 
 export default registerAs('database', () => ({
-  url: process.env.DATABASE_URL || '',
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 5432,
-  username: process.env.DB_USERNAME || 'user',
-  password: process.env.DB_PASSWORD || 'password',
-  database: process.env.DB_NAME || 'nailstudio',
-})); 
+  url: process.env.DATABASE_URL || 'mongodb://localhost:27017/nail-studio',
+}));
+
+export const connectToDatabase = async () => {
+  try {
+    await mongoose.connect(process.env.DATABASE_URL || 'mongodb://localhost:27017/nail-studio');
+    console.log('MongoDB connected successfully');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  }
+}; 

@@ -1,7 +1,8 @@
-import axiosInstance from './axiosConfig';
+import axios from 'axios';
 import config from '../config/config';
+import axiosInstance from '../config/axios.config';
 
-const API_URL = config.apiUrl;
+const API_URL = '/auth';
 
 interface LoginCredentials {
   email: string;
@@ -11,8 +12,10 @@ interface LoginCredentials {
 interface RegisterData {
   name: string;
   email: string;
-  phone: string;
+  phone?: string | null;
   password: string;
+  subscribe: boolean;
+  agreeToTerms: boolean;
 }
 
 interface AuthResponse {
@@ -26,26 +29,40 @@ interface AuthResponse {
 }
 
 class AuthService {
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await axiosInstance.post('/auth/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+  private baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  async login(email: string, password: string): Promise<AuthResponse> {
+    try {
+      const response = await axios.post(`${this.baseURL}/auth/login`, {
+        email,
+        password
+      });
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      throw error;
     }
-    return response.data;
   }
 
-  async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await axiosInstance.post('/auth/register', data);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+  async register(data: RegisterData) {
+    try {
+      const response = await axiosInstance.post(`${API_URL}/register`, data);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Registration error:', error.response?.data);
+      throw error;
     }
-    return response.data;
   }
 
   async forgotPassword(email: string): Promise<void> {
-    await axiosInstance.post('/auth/forgot-password', { email });
+    await axios.post(`${this.baseURL}/auth/forgot-password`, { email });
   }
 
   logout(): void {
@@ -68,4 +85,4 @@ class AuthService {
   }
 }
 
-export default new AuthService(); 
+export const authService = new AuthService(); 

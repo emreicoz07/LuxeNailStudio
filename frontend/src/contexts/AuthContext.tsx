@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import authService from '../services/authService';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { authService } from '../services/authService';
 
 interface User {
   id: string;
@@ -8,12 +8,21 @@ interface User {
   role: string;
 }
 
+interface RegisterData {
+  name: string;
+  email: string;
+  phone?: string | null;
+  password: string;
+  subscribe: boolean;
+  agreeToTerms: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, phone: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   clearError: () => void;
 }
@@ -21,53 +30,40 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const initAuth = () => {
-      const user = authService.getCurrentUser();
-      if (user) setUser(user);
-      setLoading(false);
-    };
-    initAuth();
+  const register = useCallback(async (data: RegisterData) => {
+    try {
+      const response = await authService.register(data);
+      setUser(response.user);
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Registration failed');
+      throw err;
+    }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
-      setLoading(true);
-      setError(null);
       const response = await authService.login({ email, password });
       setUser(response.user);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred during login');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const register = async (name: string, email: string, phone: string, password: string) => {
-    try {
-      setLoading(true);
       setError(null);
-      const response = await authService.register({ name, email, phone, password });
-      setUser(response.user);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred during registration');
+      setError(err.response?.data?.message || 'Login failed');
       throw err;
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     authService.logout();
     setUser(null);
-  };
+  }, []);
 
-  const clearError = () => setError(null);
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   return (
     <AuthContext.Provider

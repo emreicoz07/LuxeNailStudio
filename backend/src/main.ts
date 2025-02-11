@@ -2,17 +2,31 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { connectToDatabase } from './config/database.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Add global prefix
+  app.setGlobalPrefix('api');
+  
   // Enable CORS
-  app.enableCors();
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+  });
   
-  // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe());
+  // Global validation pipe with transform enabled
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }));
   
-  // Swagger documentation setup
+  // Connect to database
+  await connectToDatabase();
+
+  // Swagger setup
   const config = new DocumentBuilder()
     .setTitle('Nail Studio API')
     .setDescription('Professional Nail Studio API Documentation')
@@ -20,9 +34,9 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api-docs', app, document);
 
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
 }
