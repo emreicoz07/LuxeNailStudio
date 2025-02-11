@@ -1,9 +1,12 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useAuth } from '../contexts/AuthContext';
 
 const RegisterPage = () => {
+  const { register, error, clearError } = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -16,10 +19,29 @@ const RegisterPage = () => {
     agreeToTerms: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement registration logic
+    if (formData.password !== formData.confirmPassword) {
+      // Handle password mismatch
+      return;
+    }
+    
+    try {
+      await register(
+        formData.name,
+        formData.email,
+        formData.phone,
+        formData.password
+      );
+      navigate('/');
+    } catch (err) {
+      console.error('Registration failed:', err);
+    }
   };
+
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -39,6 +61,12 @@ const RegisterPage = () => {
       >
         <h1 className="text-3xl font-secondary text-center mb-8">Create Account</h1>
         
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-500 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Name Input */}
           <motion.div whileFocus={{ scale: 1.02 }}>

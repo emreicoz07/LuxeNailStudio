@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Section from '../../../components/common/Section';
 import Button from '../../../components/common/Button';
+import Image from '../../../components/common/Image';
 
 const HeroSection: React.FC = () => {
   return (
@@ -38,11 +39,14 @@ const HeroSection: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="relative"
         >
-          <img
-            src="/images/hero-nails.jpg"
-            alt="Beautiful nail art"
-            className="rounded-lg shadow-2xl"
-          />
+          <div className="rounded-2xl overflow-hidden shadow-2xl">
+            <Image
+              src="https://images.pexels.com/photos/3997391/pexels-photo-3997391.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+              alt="Professional nail art and manicure"
+              className="w-full h-full object-cover"
+              style={{ aspectRatio: '4/3' }}
+            />
+          </div>
           <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-lg shadow-xl">
             <div className="text-4xl font-bold text-primary-500">500+</div>
             <div className="text-text-secondary">Happy Clients</div>

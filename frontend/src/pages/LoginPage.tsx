@@ -1,20 +1,34 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { FaApple, FaFacebook, FaEye, FaEyeSlash } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage = () => {
+  const { login, error, clearError } = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement login logic
+    try {
+      await login(formData.email, formData.password);
+      navigate('/'); // Redirect to home page after successful login
+    } catch (err) {
+      // Error is handled by the auth context
+      console.error('Login failed:', err);
+    }
   };
+
+  // Clear any existing errors when component unmounts
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-200 via-primary-100 to-primary-50">
@@ -27,6 +41,12 @@ const LoginPage = () => {
         <h1 className="text-4xl font-secondary font-semibold text-center mb-8 text-text-primary">
           Welcome Back
         </h1>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-500 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit}>
           <motion.div
