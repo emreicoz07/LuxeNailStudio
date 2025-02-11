@@ -1,0 +1,92 @@
+{
+    "general": {
+      "description": "Project-wide development rules and best practices",
+      "rules": {
+        "useTypescript": true,
+        "enforceEslintPrettier": true,
+        "useDotenv": true,
+        "requireCodeComments": true,
+        "useGitBranching": true,
+        "ciCdRequired": true
+      }
+    },
+    "backend": {
+      "description": "Backend development rules and best practices",
+      "rules": {
+        "framework": "Nest.js",
+        "database": "PostgreSQL",
+        "useOrm": "Prisma",
+        "authentication": "JWT",
+        "validationLibrary": "Zod",
+        "errorHandling": "Global exception filter",
+        "logging": "Winston or Pino",
+        "apiDocumentation": "Swagger",
+        "requireUnitTests": true,
+        "requireIntegrationTests": true,
+        "rateLimiting": true,
+        "useCors": true
+      }
+    },
+    "frontend": {
+      "description": "Frontend development rules and best practices",
+      "rules": {
+        "framework": "React",
+        "stateManagement": "Redux Toolkit",
+        "uiLibrary": "Tailwind CSS",
+        "routing": "React Router",
+        "apiRequests": "Axios",
+        "formHandling": "React Hook Form with Yup",
+        "performanceOptimization": "Lazy loading and memoization",
+        "accessibilityStandards": true,
+        "useFramerMotion": true,
+        "requireUnitTests": true
+      }
+    },
+    "mobile": {
+      "description": "Mobile development rules and best practices",
+      "rules": {
+        "framework": "React Native",
+        "stateManagement": "Redux Toolkit",
+        "navigationLibrary": "React Navigation",
+        "uiLibrary": "NativeBase",
+        "apiRequests": "Axios",
+        "requireUnitTests": true
+      }
+    },
+    "security": {
+      "description": "Security best practices",
+      "rules": {
+        "useHttps": true,
+        "sanitizeInputs": true,
+        "hashPasswords": true,
+        "secureJwtTokens": true,
+        "useHelmet": true,
+        "preventSqlInjection": true
+      }
+    },
+    "ciCd": {
+      "description": "CI/CD and deployment rules",
+      "rules": {
+        "useGithubActions": true,
+        "runTestsBeforeMerge": true,
+        "enforceCodeReviews": true,
+        "requireLintChecks": true,
+        "requireBuildChecks": true,
+        "useDocker": true,
+        "deployFrontend": "Vercel or Netlify",
+        "deployBackend": "Railway or AWS",
+        "monitoring": "Sentry or Datadog"
+      }
+    },
+    "testing": {
+      "description": "Testing requirements",
+      "rules": {
+        "unitTestCoverage": "90%",
+        "integrationTestCoverage": "80%",
+        "e2eTesting": true,
+        "useJest": true,
+        "requireMocking": true
+      }
+    }
+  }
+  

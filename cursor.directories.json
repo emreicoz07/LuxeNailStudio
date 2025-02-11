@@ -1,0 +1,74 @@
+{
+    "backend": {
+      "description": "Backend application developed with TypeScript (Nest.js/Express)",
+      "folders": {
+        "src": {
+          "description": "Source files for the backend",
+          "folders": {
+            "controllers": { "description": "Handles business logic" },
+            "routes": { "description": "Defines API endpoints" },
+            "middlewares": { "description": "Authentication, logging, error handling" },
+            "services": { "description": "Business logic and database interactions" },
+            "models": { "description": "Defines database schemas" },
+            "utils": { "description": "Helper functions" },
+            "config": { "description": "Configuration files for environment settings" },
+            "tests": { "description": "Unit and integration tests" }
+          }
+        },
+        "prisma": { "description": "Prisma schema and migration files" },
+        "docs": { "description": "API documentation (Swagger, Postman collections, etc.)" }
+      }
+    },
+    "frontend": {
+      "description": "React-based web application with Redux and Tailwind",
+      "folders": {
+        "src": {
+          "description": "Frontend source files",
+          "folders": {
+            "components": { "description": "Reusable UI components" },
+            "pages": { "description": "Different application views (Home, Booking, Services, etc.)" },
+            "store": { "description": "Redux slices for state management" },
+            "hooks": { "description": "Custom hooks for managing state and API calls" },
+            "assets": { "description": "Images, icons, and styles" },
+            "utils": { "description": "Helper functions and utilities" },
+            "config": { "description": "Configuration settings for frontend behavior" },
+            "tests": { "description": "Unit and integration tests using Jest" }
+          }
+        },
+        "public": { "description": "Public assets (index.html, favicon, etc.)" }
+      }
+    },
+    "mobile": {
+      "description": "React Native application for mobile optimization",
+      "folders": {
+        "src": {
+          "description": "Mobile source files",
+          "folders": {
+            "components": { "description": "Reusable UI elements for React Native" },
+            "screens": { "description": "Mobile application screens" },
+            "store": { "description": "Redux slices for state management" },
+            "hooks": { "description": "Custom hooks for mobile-specific features" },
+            "assets": { "description": "Icons, images, and media" },
+            "utils": { "description": "Helper functions for mobile" },
+            "config": { "description": "Configuration files for mobile settings" },
+            "tests": { "description": "Unit and integration tests for React Native" }
+          }
+        }
+      }
+    },
+    "common": {
+      "description": "Shared files and configurations",
+      "folders": {
+        ".github": { "description": "CI/CD workflows and GitHub Actions configuration" },
+        "scripts": { "description": "Build and deployment scripts" },
+        "docs": { "description": "Project documentation, API references, and guides" }
+      },
+      "files": {
+        ".gitignore": "Specifies ignored files for Git",
+        "README.md": "Project documentation",
+        "cursor.json": "Cursor AI project configuration file",
+        "cursor.directories.json": "Cursor AI directory structure"
+      }
+    }
+  }
+  

@@ -1,0 +1,138 @@
+Professional Nail Studio Web Application
+
+Objective:
+Develop a modern, responsive Professional Nail Studio Web Application with a candy pink color theme that allows users to book appointments, browse services, and showcase past work.
+
+Platforms:
+
+Web (Primary)
+Mobile (Optional - React Native)
+Admin Dashboard for management
+Technology Stack & Development Guidelines
+Backend (API & Server)
+Language: TypeScript
+Framework: Nest.js (Recommended) or Express.js
+Linting & Formatting: ESLint & Prettier for consistent code quality
+Database: PostgreSQL (preferred) or MongoDB
+ORM: Prisma ORM (Recommended) or TypeORM/Mongoose
+Authentication: JWT-based authentication
+Data Validation: Validate request bodies using Zod or Joi
+Error Handling: Implement proper exception handling & logging
+API Documentation: Use Swagger for documentation
+Environment Variables: Manage with dotenv
+Testing:
+Unit Testing (Jest)
+Integration Testing
+API Testing with Postman or Supertest
+Performance Optimization:
+Use caching (Redis or similar)
+Optimize database queries
+Implement rate limiting (Express Rate Limit)
+Folder Structure (Backend)
+
+/controllers → Handle business logic
+/routes → Define API endpoints
+/middlewares → Authentication, logging, error handling
+/services → Business logic and database interactions
+/models → Define database schemas
+/utils → Helper functions
+/config → Configuration files
+/tests → Unit and integration tests
+Frontend (Web Application)
+Framework: React with TypeScript
+State Management: Redux Toolkit
+UI Library: Tailwind CSS or Styled Components
+Routing: React Router
+Form Handling: React Hook Form with Yup validation
+API Requests: Axios for API calls
+Code Quality: Use ESLint & Prettier
+Performance Optimization:
+Lazy Loading (React Suspense)
+Memoization with useMemo
+Optimized re-renders with useCallback
+Folder Structure (Frontend)
+
+/components → Reusable UI components
+/pages → Different application views (Home, Booking, Services, etc.)
+/store → Redux slices for state management
+/hooks → Custom hooks
+/assets → Images, icons, and styles
+/utils → Helper functions
+/config → Configuration settings
+/tests → Jest and React Testing Library tests
+Mobile (Optional)
+Framework: React Native with TypeScript
+Navigation: React Navigation
+State Management: Redux Toolkit
+API Requests: Axios
+UI Library: NativeBase or React Native Paper
+Folder Structure (Mobile)
+
+/components → Reusable UI elements
+/screens → Mobile application screens
+/store → Redux slices for state management
+/hooks → Custom hooks for mobile
+/assets → Icons and images
+/utils → Helper functions
+/config → App configuration
+/tests → Mobile-specific unit tests
+UI/UX Requirements
+Primary Color Theme: Candy Pink 🎀
+Design Consistency: All pages must follow the same theme and typography
+Mobile-Responsive: The UI should be fully responsive on different devices
+Smooth Animations: Use Framer Motion for subtle animations
+Accessibility: Ensure proper contrast, font sizes, and keyboard navigation
+Website Pages
+1️⃣ Home Page 🏠 → Showcase services, promotions, and hero section
+2️⃣ Booking Page 📅 → Users can schedule appointments
+3️⃣ Services Page 💅 → Display available nail services
+4️⃣ Gallery Page 📸 → Showcase previous work (images, client testimonials)
+5️⃣ About Us Page 📖 → Provide business details & team info
+6️⃣ Contact Page 📞 → Contact form & social media links
+
+Expected Features
+✅ User Authentication: Sign up, login, logout (JWT-based)
+✅ Admin Dashboard: Manage appointments & services
+✅ Booking System: Users can select date, time & service
+✅ Payment Integration: (Optional) Stripe or PayPal for pre-payments
+✅ Email Notifications: Send confirmation emails for bookings
+✅ Social Media Integration: Embed Instagram feed & add social media links
+✅ SEO Optimization: Meta tags & structured data for search engine ranking
+✅ Performance Optimization: Lazy loading, caching, optimized API calls
+✅ Testing: Ensure 90%+ test coverage for critical features
+
+Deployment & CI/CD
+✅ Backend Deployment: Docker & Kubernetes (Optional)
+✅ Frontend Deployment: Vercel, Netlify, or AWS
+✅ Database Hosting: Railway, Supabase, or AWS RDS
+✅ CI/CD Pipeline:
+
+GitHub Actions for automated testing & deployment
+Linting & Testing before merge
+Dockerized Containers for production
+Development Workflow
+1️⃣ Setup Backend: Initialize Nest.js/Express, set up database, and define API endpoints
+2️⃣ Setup Frontend: Configure React, Redux, Tailwind, and API integrations
+3️⃣ Develop Core Features: Implement authentication, booking system, and admin dashboard
+4️⃣ Design & UI Enhancements: Ensure pixel-perfect UI with animations and responsiveness
+5️⃣ Testing & Optimization: Write unit tests, fix bugs, and optimize performance
+6️⃣ Deploy & Launch: Set up CI/CD pipelines and deploy to production
+
+Additional Requirements
+✅ Code Documentation: Use JSDoc and inline comments
+✅ Error Monitoring: Integrate Sentry for tracking errors
+✅ Analytics: Google Analytics for tracking user behavior
+✅ Push Notifications (Optional): Send reminders for bookings
+
+Summary of Requirements
+Category	Requirement
+Backend	TypeScript, Nest.js/Express, PostgreSQL, Prisma ORM
+Frontend	React, Redux Toolkit, Tailwind CSS, Axios
+Mobile (Optional)	React Native, Redux Toolkit, React Navigation
+Authentication	JWT-based, Secure Login
+Booking System	Select date, time & service
+Admin Dashboard	Manage bookings, services, and users
+Payments	(Optional) Stripe or PayPal integration
+SEO & Performance	Lazy loading, caching, optimized API calls
+Testing	Jest, Integration Tests, API Tests
+Deployment	CI/CD, Docker, Vercel/Netlify, AWS RDS
