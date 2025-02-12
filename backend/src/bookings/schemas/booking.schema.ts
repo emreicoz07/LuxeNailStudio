@@ -1,27 +1,24 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 import { User } from '../../auth/schemas/user.schema';
 import { Service } from './service.schema';
 import { AddOn } from './addon.schema';
+import { PaymentStatus } from '../dto/create-booking.dto';
 
 export enum BookingStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  CANCELED = 'canceled',
-  COMPLETED = 'completed',
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  CANCELED = 'CANCELED',
+  COMPLETED = 'COMPLETED',
 }
 
-export enum PaymentStatus {
-  PENDING = 'pending',
-  PAID = 'paid',
-  REFUNDED = 'refunded',
-  FAILED = 'failed',
+export interface BookingDocument extends Booking, Document {
+  _id: Types.ObjectId;
+  id: string;
 }
-
-export type BookingDocument = Booking & Document;
 
 @Schema({ timestamps: true })
-export class Booking {
+export class Booking extends Document {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
   userId: User;
 
@@ -37,7 +34,7 @@ export class Booking {
   @Prop({ required: true, enum: BookingStatus, default: BookingStatus.PENDING })
   status: BookingStatus;
 
-  @Prop({ required: true, enum: PaymentStatus, default: PaymentStatus.PENDING })
+  @Prop({ type: String, enum: ['PAID', 'UNPAID', 'REFUNDED'], default: 'UNPAID' })
   paymentStatus: PaymentStatus;
 
   @Prop({ min: 0 })
@@ -54,6 +51,9 @@ export class Booking {
 
   @Prop({ default: false })
   reminderSent: boolean;
+
+  @Prop()
+  paymentId?: string;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);

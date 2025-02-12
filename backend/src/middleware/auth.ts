@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
+import { AuthGuard } from '@nestjs/passport';
 
 // Define the JWT payload interface
 interface JwtPayload {
@@ -15,11 +16,14 @@ export interface RequestWithUser extends Request {
 }
 
 @Injectable()
-export class AuthMiddleware {
-  constructor(private jwtService: JwtService) {}
+export class AuthMiddleware extends AuthGuard('jwt') {
+  constructor(private jwtService: JwtService) {
+    super();
+  }
 
-  async use(req: RequestWithUser, res: Response, next: NextFunction) {
-    const token = req.headers.authorization?.split(' ')[1];
+  async canActivate(context: any): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const token = request.headers.authorization?.split(' ')[1];
     
     if (!token) {
       throw new UnauthorizedException('No token provided');
@@ -27,13 +31,8 @@ export class AuthMiddleware {
 
     try {
       const decoded = this.jwtService.verify(token) as JwtPayload;
-      // Properly set the user object with the decoded token data
-      req.user = {
-        userId: decoded.userId,
-        email: decoded.email,
-        role: decoded.role
-      };
-      next();
+      request.user = decoded;
+      return true;
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
     }

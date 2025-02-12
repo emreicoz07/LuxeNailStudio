@@ -4,23 +4,24 @@ import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
 import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
 import { StripeModule } from '../stripe/stripe.module';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module';
+import { Booking, BookingSchema } from './schemas/booking.schema';
+import { EmailModule } from '../email/email.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Appointment.name, schema: AppointmentSchema }]),
+    MongooseModule.forFeature([
+      { name: Appointment.name, schema: AppointmentSchema },
+      { name: Booking.name, schema: BookingSchema }
+    ]),
     StripeModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET') || 'your-secret-key',
-        signOptions: { expiresIn: '24h' },
-      }),
-      inject: [ConfigService],
-    }),
+    AuthModule,
+    EmailModule,
+    ConfigModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService],
+  exports: [BookingsService]
 })
 export class BookingsModule {} 

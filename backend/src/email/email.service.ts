@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { format } from 'date-fns';
 
 @Injectable()
 export class EmailService {
@@ -116,6 +117,57 @@ export class EmailService {
         this.logger.error(`Error code: ${error.code}`);
       }
       throw new Error('Failed to send password reset email. Please try again later.');
+    }
+  }
+
+  async sendBookingConfirmationEmail(params: {
+    email: string;
+    name: string;
+    bookingDetails: {
+      id: string;
+      dateTime: Date;
+      totalAmount: number;
+      depositAmount: number;
+      status: string;
+      paymentStatus: string;
+    };
+  }): Promise<void> {
+    const { email, name, bookingDetails } = params;
+    try {
+      const template = await this.loadTemplate('booking-confirmation');
+
+      const formattedDate = format(bookingDetails.dateTime, 'EEEE, MMMM do, yyyy');
+      const formattedTime = format(bookingDetails.dateTime, 'h:mm a');
+
+      const html = template({
+        name,
+        bookingId: bookingDetails.id,
+        date: formattedDate,
+        time: formattedTime,
+        totalAmount: bookingDetails.totalAmount.toFixed(2),
+        depositAmount: bookingDetails.depositAmount.toFixed(2),
+        remainingAmount: (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2),
+        status: bookingDetails.status,
+        paymentStatus: bookingDetails.paymentStatus,
+        websiteName: this.configService.get<string>('WEBSITE_NAME', 'Nail Studio'),
+        businessAddress: this.configService.get<string>('BUSINESS_ADDRESS'),
+        businessPhone: this.configService.get<string>('BUSINESS_PHONE'),
+        googleMapsUrl: this.configService.get<string>('GOOGLE_MAPS_URL'),
+        managementUrl: `${this.configService.get<string>('FRONTEND_URL')}/appointments/${bookingDetails.id}`,
+        cancelUrl: `${this.configService.get<string>('FRONTEND_URL')}/appointments/${bookingDetails.id}/cancel`,
+      });
+
+      await this.transporter.sendMail({
+        from: `"${this.configService.get<string>('WEBSITE_NAME', 'Nail Studio')}" <${this.configService.get('GMAIL_USER')}>`,
+        to: email,
+        subject: 'Your Booking Confirmation 💅',
+        html,
+      });
+
+      this.logger.log(`Booking confirmation email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send booking confirmation email to ${email}:`, error);
+      throw error;
     }
   }
 } 
