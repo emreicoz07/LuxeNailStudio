@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { FaApple, FaFacebook, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -32,14 +32,39 @@ const LoginPage = () => {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(() => {
+    // Check if there's an error stored in sessionStorage
+    const storedError = sessionStorage.getItem('loginError');
+    return storedError ? JSON.parse(storedError) : null;
+  });
 
-  const { register, handleSubmit, formState: { errors }, setError } = useForm<LoginFormInputs>({
+  // Clear error when component unmounts or user starts typing
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('loginError');
+    };
+  }, []);
+
+  const { register, handleSubmit, formState: { errors }, setError, watch } = useForm<LoginFormInputs>({
     resolver: yupResolver(schema)
   });
+
+  // Clear error when user starts typing
+  useEffect(() => {
+    const subscription = watch(() => {
+      if (loginError) {
+        setLoginError(null);
+        sessionStorage.removeItem('loginError');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, loginError]);
 
   const onSubmit = async (data: LoginFormInputs) => {
     try {
       setIsSubmitting(true);
+      setLoginError(null);
+      sessionStorage.removeItem('loginError');
       await login(data.email, data.password);
       
       toast.success('Welcome back! 👋', {
@@ -56,13 +81,28 @@ const LoginPage = () => {
       navigate(redirectTo);
     } catch (err: any) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
-      toast.error(errorMessage);
+      
+      // Store error in sessionStorage
+      sessionStorage.setItem('loginError', JSON.stringify(errorMessage));
+      
+      // Show error toast with longer duration
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: false, // Won't auto-close
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
       
       // Set form-level error
       setError('root', {
         type: 'manual',
         message: errorMessage
       });
+      
+      // Store the error message in state
+      setLoginError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -83,6 +123,30 @@ const LoginPage = () => {
             Sign in to your account
           </p>
         </div>
+
+        {loginError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative mb-4 p-4 bg-red-50 border border-red-200 rounded-lg"
+          >
+            <div className="flex justify-between items-start">
+              <p className="text-red-600 text-sm">{loginError}</p>
+              <button
+                onClick={() => {
+                  setLoginError(null);
+                  sessionStorage.removeItem('loginError');
+                }}
+                className="text-red-400 hover:text-red-600 transition-colors"
+                aria-label="Dismiss error"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm space-y-4">
@@ -136,6 +200,12 @@ const LoginPage = () => {
               Forgot your password?
             </Link>
           </div>
+
+          {errors.root && (
+            <div className="text-red-500 text-sm mt-2">
+              {errors.root.message}
+            </div>
+          )}
 
           <Button
             type="submit"

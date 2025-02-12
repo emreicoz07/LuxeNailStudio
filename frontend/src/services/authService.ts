@@ -48,17 +48,16 @@ class AuthService {
       }
       throw new Error('No token received from server');
     } catch (error: any) {
-      console.error('Login error:', error);
-      if (error.response?.status === 404) {
-        throw new Error('Login service is currently unavailable');
-      }
       if (error.response?.status === 401) {
         throw new Error('Invalid email or password');
+      }
+      if (error.response?.status === 404) {
+        throw new Error('Login service is currently unavailable');
       }
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message);
       }
-      throw new Error('Login failed. Please try again.');
+      throw new Error('An unexpected error occurred. Please try again later.');
     }
   }
 

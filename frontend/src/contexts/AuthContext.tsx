@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { authService } from '../services/authService';
 
 interface User {
@@ -31,8 +31,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(() => {
+    // Check for persisted error on initial load
+    const storedError = sessionStorage.getItem('authError');
+    return storedError ? JSON.parse(storedError) : null;
+  });
+
+  const clearError = useCallback(() => {
+    setError(null);
+    sessionStorage.removeItem('authError');
+  }, []);
+
+  // Clear stored error when component unmounts
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('authError');
+    };
+  }, []);
 
   const register = useCallback(async (data: RegisterData) => {
     try {
@@ -47,22 +63,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (email: string, password: string) => {
     try {
+      setLoading(true);
+      clearError();
       const response = await authService.login({ email, password });
       setUser(response.user);
-      setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      const errorMessage = err.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      // Persist error in sessionStorage
+      sessionStorage.setItem('authError', JSON.stringify(errorMessage));
       throw err;
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [clearError]);
 
   const logout = useCallback(() => {
     authService.logout();
     setUser(null);
-  }, []);
-
-  const clearError = useCallback(() => {
-    setError(null);
   }, []);
 
   return (
