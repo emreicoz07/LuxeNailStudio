@@ -3,6 +3,8 @@ import Section from '../../components/common/Section';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSpa } from 'react-icons/fa';
 import { GiNails } from 'react-icons/gi';
+import { format, addDays, setHours, setMinutes, isBefore, isAfter } from 'date-fns';
+import { HiOutlineCalendar, HiOutlineClock } from 'react-icons/hi';
 
 type BookingStep = 'category' | 'service' | 'datetime' | 'summary';
 
@@ -15,10 +17,17 @@ interface Service {
   category: string;
 }
 
+interface TimeSlot {
+  time: string;
+  available: boolean;
+}
+
 const BookingPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<BookingStep>('category');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedService, setSelectedService] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTime, setSelectedTime] = useState<string>('');
 
   const categories = [
     {
@@ -83,6 +92,37 @@ const BookingPage: React.FC = () => {
   const filteredServices = services.filter(
     service => service.category === selectedCategory
   );
+
+  const generateTimeSlots = (selectedDate: Date): TimeSlot[] => {
+    const slots: TimeSlot[] = [];
+    const startHour = 9; // 9 AM
+    const endHour = 17; // 5 PM
+    const now = new Date();
+
+    for (let hour = startHour; hour <= endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = setMinutes(setHours(selectedDate, hour), minute);
+        
+        // Skip times in the past for today
+        if (format(selectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd') && 
+            isBefore(time, now)) {
+          continue;
+        }
+
+        slots.push({
+          time: format(time, 'h:mm a'),
+          available: true // In a real app, this would come from your backend
+        });
+      }
+    }
+    return slots;
+  };
+
+  const handleDateTimeSubmit = () => {
+    if (selectedTime) {
+      setCurrentStep('summary');
+    }
+  };
 
   return (
     <Section className="pt-20 min-h-screen">
@@ -200,7 +240,97 @@ const BookingPage: React.FC = () => {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <h1>DateTime Selection Coming Soon</h1>
+              <div className="flex items-center mb-8">
+                <button
+                  onClick={() => setCurrentStep('service')}
+                  className="text-gray-500 transition-colors hover:text-primary-500"
+                >
+                  ← Back
+                </button>
+                <h1 className="flex-1 text-4xl font-bold text-center">
+                  Choose Date & Time
+                </h1>
+              </div>
+
+              {/* Date Selection */}
+              <div className="space-y-4">
+                <h2 className="flex items-center text-xl font-semibold">
+                  <HiOutlineCalendar className="mr-2 w-5 h-5" />
+                  Select Date
+                </h2>
+                <div className="grid grid-cols-4 gap-3">
+                  {[...Array(7)].map((_, index) => {
+                    const date = addDays(new Date(), index);
+                    const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                    
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedDate(date)}
+                        className={`
+                          p-4 rounded-lg border-2 transition-all duration-300
+                          ${isSelected 
+                            ? 'border-primary-300 bg-primary-50' 
+                            : 'border-gray-100 hover:border-primary-200'
+                          }
+                        `}
+                      >
+                        <div className="text-sm text-gray-600">
+                          {format(date, 'EEE')}
+                        </div>
+                        <div className="text-lg font-semibold">
+                          {format(date, 'd')}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time Selection */}
+              <div className="space-y-4">
+                <h2 className="flex items-center text-xl font-semibold">
+                  <HiOutlineClock className="mr-2 w-5 h-5" />
+                  Select Time
+                </h2>
+                <div className="grid grid-cols-3 gap-3 md:grid-cols-4">
+                  {generateTimeSlots(selectedDate).map((slot) => (
+                    <button
+                      key={slot.time}
+                      onClick={() => setSelectedTime(slot.time)}
+                      disabled={!slot.available}
+                      className={`
+                        p-3 rounded-lg border-2 transition-all duration-300
+                        ${selectedTime === slot.time 
+                          ? 'border-primary-300 bg-primary-50' 
+                          : 'border-gray-100 hover:border-primary-200'
+                        }
+                        ${!slot.available && 'opacity-50 cursor-not-allowed'}
+                      `}
+                    >
+                      {slot.time}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Continue Button */}
+              <div className="flex justify-end mt-8">
+                <button
+                  onClick={handleDateTimeSubmit}
+                  disabled={!selectedTime}
+                  className={`
+                    px-6 py-3 rounded-lg font-semibold text-white
+                    transition-all duration-300
+                    ${selectedTime 
+                      ? 'bg-primary-500 hover:bg-primary-600' 
+                      : 'bg-gray-300 cursor-not-allowed'
+                    }
+                  `}
+                >
+                  Continue to Summary
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
