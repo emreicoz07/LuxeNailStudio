@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Appointment, AppointmentDocument } from './schemas/appointment.schema';
+import { Appointment } from './schemas/appointment.schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { Booking, BookingDocument, BookingStatus } from './schemas/booking.schema';
 import { EmailService } from '../email/email.service';
@@ -14,7 +14,7 @@ export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
 
   constructor(
-    @InjectModel(Appointment.name) private appointmentModel: Model<AppointmentDocument>,
+    @InjectModel(Appointment.name) private appointmentModel: Model<Appointment>,
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,

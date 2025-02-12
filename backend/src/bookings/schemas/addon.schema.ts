@@ -8,8 +8,8 @@ export class AddOn {
   @Prop({ required: true })
   name: string;
 
-  @Prop()
-  description?: string;
+  @Prop({ required: true })
+  description: string;
 
   @Prop({ required: true, min: 0 })
   price: number;

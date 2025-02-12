@@ -860,13 +860,18 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const bookings_controller_1 = __webpack_require__(/*! ./bookings.controller */ "./src/bookings/bookings.controller.ts");
 const bookings_service_1 = __webpack_require__(/*! ./bookings.service */ "./src/bookings/bookings.service.ts");
-const appointment_schema_1 = __webpack_require__(/*! ./schemas/appointment.schema */ "./src/bookings/schemas/appointment.schema.ts");
+const service_schema_1 = __webpack_require__(/*! ./schemas/service.schema */ "./src/bookings/schemas/service.schema.ts");
+const category_schema_1 = __webpack_require__(/*! ./schemas/category.schema */ "./src/bookings/schemas/category.schema.ts");
+const addon_schema_1 = __webpack_require__(/*! ./schemas/addon.schema */ "./src/bookings/schemas/addon.schema.ts");
+const booking_schema_1 = __webpack_require__(/*! ./schemas/booking.schema */ "./src/bookings/schemas/booking.schema.ts");
 const stripe_module_1 = __webpack_require__(/*! ../stripe/stripe.module */ "./src/stripe/stripe.module.ts");
 const auth_module_1 = __webpack_require__(/*! ../auth/auth.module */ "./src/auth/auth.module.ts");
-const booking_schema_1 = __webpack_require__(/*! ./schemas/booking.schema */ "./src/bookings/schemas/booking.schema.ts");
 const email_module_1 = __webpack_require__(/*! ../email/email.module */ "./src/email/email.module.ts");
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
+const appointment_schema_1 = __webpack_require__(/*! ./schemas/appointment.schema */ "./src/bookings/schemas/appointment.schema.ts");
+const services_seed_1 = __webpack_require__(/*! ./seeds/services.seed */ "./src/bookings/seeds/services.seed.ts");
+const seed_command_1 = __webpack_require__(/*! ./commands/seed.command */ "./src/bookings/commands/seed.command.ts");
 let BookingsModule = class BookingsModule {
 };
 exports.BookingsModule = BookingsModule;
@@ -874,8 +879,11 @@ exports.BookingsModule = BookingsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             mongoose_1.MongooseModule.forFeature([
-                { name: appointment_schema_1.Appointment.name, schema: appointment_schema_1.AppointmentSchema },
-                { name: booking_schema_1.Booking.name, schema: booking_schema_1.BookingSchema }
+                { name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema },
+                { name: category_schema_1.Category.name, schema: category_schema_1.CategorySchema },
+                { name: addon_schema_1.AddOn.name, schema: addon_schema_1.AddOnSchema },
+                { name: booking_schema_1.Booking.name, schema: booking_schema_1.BookingSchema },
+                { name: appointment_schema_1.Appointment.name, schema: appointment_schema_1.AppointmentSchema }
             ]),
             stripe_module_1.StripeModule,
             auth_module_1.AuthModule,
@@ -884,7 +892,7 @@ exports.BookingsModule = BookingsModule = __decorate([
             schedule_1.ScheduleModule.forRoot(),
         ],
         controllers: [bookings_controller_1.BookingsController],
-        providers: [bookings_service_1.BookingsService],
+        providers: [bookings_service_1.BookingsService, services_seed_1.ServicesSeedService, seed_command_1.SeedServicesCommand],
         exports: [bookings_service_1.BookingsService]
     })
 ], BookingsModule);
@@ -1051,6 +1059,52 @@ exports.BookingsService = BookingsService = BookingsService_1 = __decorate([
 
 /***/ }),
 
+/***/ "./src/bookings/commands/seed.command.ts":
+/*!***********************************************!*\
+  !*** ./src/bookings/commands/seed.command.ts ***!
+  \***********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SeedServicesCommand = void 0;
+const nest_commander_1 = __webpack_require__(/*! nest-commander */ "nest-commander");
+const services_seed_1 = __webpack_require__(/*! ../seeds/services.seed */ "./src/bookings/seeds/services.seed.ts");
+let SeedServicesCommand = class SeedServicesCommand extends nest_commander_1.CommandRunner {
+    constructor(seedService) {
+        super();
+        this.seedService = seedService;
+    }
+    async run() {
+        try {
+            await this.seedService.seed();
+            console.log('Services and categories seeded successfully');
+        }
+        catch (error) {
+            console.error('Failed to seed services:', error);
+            process.exit(1);
+        }
+    }
+};
+exports.SeedServicesCommand = SeedServicesCommand;
+exports.SeedServicesCommand = SeedServicesCommand = __decorate([
+    (0, nest_commander_1.Command)({ name: 'seed-services', description: 'Seed services and categories' }),
+    __metadata("design:paramtypes", [typeof (_a = typeof services_seed_1.ServicesSeedService !== "undefined" && services_seed_1.ServicesSeedService) === "function" ? _a : Object])
+], SeedServicesCommand);
+
+
+/***/ }),
+
 /***/ "./src/bookings/dto/create-booking.dto.ts":
 /*!************************************************!*\
   !*** ./src/bookings/dto/create-booking.dto.ts ***!
@@ -1111,6 +1165,56 @@ __decorate([
 
 /***/ }),
 
+/***/ "./src/bookings/schemas/addon.schema.ts":
+/*!**********************************************!*\
+  !*** ./src/bookings/schemas/addon.schema.ts ***!
+  \**********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AddOnSchema = exports.AddOn = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+let AddOn = class AddOn {
+};
+exports.AddOn = AddOn;
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], AddOn.prototype, "name", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], AddOn.prototype, "description", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, min: 0 }),
+    __metadata("design:type", Number)
+], AddOn.prototype, "price", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, min: 0 }),
+    __metadata("design:type", Number)
+], AddOn.prototype, "duration", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], AddOn.prototype, "isActive", void 0);
+exports.AddOn = AddOn = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], AddOn);
+exports.AddOnSchema = mongoose_1.SchemaFactory.createForClass(AddOn);
+
+
+/***/ }),
+
 /***/ "./src/bookings/schemas/appointment.schema.ts":
 /*!****************************************************!*\
   !*** ./src/bookings/schemas/appointment.schema.ts ***!
@@ -1127,46 +1231,46 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a, _b, _c;
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppointmentSchema = exports.Appointment = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-let Appointment = class Appointment {
+let Appointment = class Appointment extends mongoose_2.Document {
 };
 exports.Appointment = Appointment;
 __decorate([
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'User', required: true }),
-    __metadata("design:type", typeof (_a = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _a : Object)
+    (0, mongoose_1.Prop)({ required: true, type: mongoose_2.Schema.Types.ObjectId, ref: 'User' }),
+    __metadata("design:type", typeof (_b = typeof mongoose_2.Schema !== "undefined" && (_a = mongoose_2.Schema.Types) !== void 0 && _a.ObjectId) === "function" ? _b : Object)
 ], Appointment.prototype, "userId", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Service', required: true }),
-    __metadata("design:type", typeof (_b = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _b : Object)
+    (0, mongoose_1.Prop)({ required: true, type: mongoose_2.Schema.Types.ObjectId, ref: 'Service' }),
+    __metadata("design:type", typeof (_d = typeof mongoose_2.Schema !== "undefined" && (_c = mongoose_2.Schema.Types) !== void 0 && _c.ObjectId) === "function" ? _d : Object)
 ], Appointment.prototype, "serviceId", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
-], Appointment.prototype, "appointmentDate", void 0);
+    __metadata("design:type", typeof (_e = typeof Date !== "undefined" && Date) === "function" ? _e : Object)
+], Appointment.prototype, "date", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Appointment.prototype, "startTime", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", Number)
-], Appointment.prototype, "amount", void 0);
+], Appointment.prototype, "duration", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
-    __metadata("design:type", Number)
-], Appointment.prototype, "depositAmount", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ default: 'PENDING' }),
+    (0, mongoose_1.Prop)({ default: 'pending', enum: ['pending', 'confirmed', 'cancelled', 'completed'] }),
     __metadata("design:type", String)
 ], Appointment.prototype, "status", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
-], Appointment.prototype, "paymentId", void 0);
+], Appointment.prototype, "paymentIntentId", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ default: 'UNPAID' }),
-    __metadata("design:type", String)
-], Appointment.prototype, "paymentStatus", void 0);
+    (0, mongoose_1.Prop)({ default: false }),
+    __metadata("design:type", Boolean)
+], Appointment.prototype, "isPaid", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
@@ -1303,13 +1407,28 @@ __decorate([
     __metadata("design:type", String)
 ], Category.prototype, "description", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Category.prototype, "slug", void 0);
+__decorate([
     (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Category.prototype, "imageUrl", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], Category.prototype, "isActive", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Category.prototype, "order", void 0);
 exports.Category = Category = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Category);
 exports.CategorySchema = mongoose_1.SchemaFactory.createForClass(Category);
+exports.CategorySchema.index({ slug: 1 }, { unique: true });
+exports.CategorySchema.index({ order: 1 });
+exports.CategorySchema.index({ isActive: 1 });
 
 
 /***/ }),
@@ -1332,10 +1451,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServiceSchema = exports.Service = void 0;
+exports.ServiceSchema = exports.Service = exports.ServiceCategory = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const category_schema_1 = __webpack_require__(/*! ./category.schema */ "./src/bookings/schemas/category.schema.ts");
+var ServiceCategory;
+(function (ServiceCategory) {
+    ServiceCategory["MANICURE"] = "MANICURE";
+    ServiceCategory["PEDICURE"] = "PEDICURE";
+    ServiceCategory["NAIL_ART"] = "NAIL_ART";
+    ServiceCategory["SPECIAL"] = "SPECIAL";
+})(ServiceCategory || (exports.ServiceCategory = ServiceCategory = {}));
 let Service = class Service {
 };
 exports.Service = Service;
@@ -1343,10 +1469,6 @@ __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
 ], Service.prototype, "name", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ type: mongoose_2.Schema.Types.ObjectId, ref: 'Category', required: true }),
-    __metadata("design:type", typeof (_a = typeof category_schema_1.Category !== "undefined" && category_schema_1.Category) === "function" ? _a : Object)
-], Service.prototype, "category", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
@@ -1360,21 +1482,200 @@ __decorate([
     __metadata("design:type", Number)
 ], Service.prototype, "duration", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, min: 0, default: 0 }),
-    __metadata("design:type", Number)
-], Service.prototype, "deposit", void 0);
+    (0, mongoose_1.Prop)({ type: mongoose_2.Schema.Types.ObjectId, ref: 'Category', required: true }),
+    __metadata("design:type", typeof (_a = typeof category_schema_1.Category !== "undefined" && category_schema_1.Category) === "function" ? _a : Object)
+], Service.prototype, "category", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, enum: ServiceCategory, default: ServiceCategory.MANICURE }),
+    __metadata("design:type", String)
+], Service.prototype, "serviceCategory", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Service.prototype, "imageUrl", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: true }),
     __metadata("design:type", Boolean)
 ], Service.prototype, "isActive", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
-    __metadata("design:type", String)
-], Service.prototype, "imageUrl", void 0);
+    (0, mongoose_1.Prop)({ min: 0, default: 0 }),
+    __metadata("design:type", Number)
+], Service.prototype, "deposit", void 0);
 exports.Service = Service = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Service);
 exports.ServiceSchema = mongoose_1.SchemaFactory.createForClass(Service);
+exports.ServiceSchema.index({ category: 1 });
+exports.ServiceSchema.index({ serviceCategory: 1 });
+exports.ServiceSchema.index({ isActive: 1 });
+
+
+/***/ }),
+
+/***/ "./src/bookings/seeds/services.seed.ts":
+/*!*********************************************!*\
+  !*** ./src/bookings/seeds/services.seed.ts ***!
+  \*********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServicesSeedService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const service_schema_1 = __webpack_require__(/*! ../schemas/service.schema */ "./src/bookings/schemas/service.schema.ts");
+const category_schema_1 = __webpack_require__(/*! ../schemas/category.schema */ "./src/bookings/schemas/category.schema.ts");
+let ServicesSeedService = class ServicesSeedService {
+    constructor(serviceModel, categoryModel) {
+        this.serviceModel = serviceModel;
+        this.categoryModel = categoryModel;
+    }
+    async seed() {
+        const categories = await this.createCategories();
+        if (!categories) {
+            throw new Error('Failed to create categories');
+        }
+        await this.createServices(categories);
+    }
+    async createCategories() {
+        try {
+            await this.categoryModel.deleteMany({});
+            const categoriesToCreate = [
+                {
+                    name: 'Manicure Services',
+                    description: 'Professional manicure treatments',
+                    slug: 'manicure-services',
+                    order: 1,
+                },
+                {
+                    name: 'Pedicure Services',
+                    description: 'Professional pedicure treatments',
+                    slug: 'pedicure-services',
+                    order: 2,
+                },
+                {
+                    name: 'Nail Art',
+                    description: 'Creative nail art services',
+                    slug: 'nail-art',
+                    order: 3,
+                },
+                {
+                    name: 'Special Services',
+                    description: 'Special nail care treatments',
+                    slug: 'special-services',
+                    order: 4,
+                },
+            ];
+            const createdCategories = await this.categoryModel.create(categoriesToCreate);
+            return {
+                manicure: createdCategories[0],
+                pedicure: createdCategories[1],
+                nailArt: createdCategories[2],
+                special: createdCategories[3],
+            };
+        }
+        catch (error) {
+            console.error('Error creating categories:', error);
+            return null;
+        }
+    }
+    async createServices(categories) {
+        try {
+            await this.serviceModel.deleteMany({});
+            const servicesToCreate = [
+                {
+                    name: 'Basic Manicure',
+                    description: 'Classic manicure treatment with regular polish',
+                    price: 25.00,
+                    duration: 30,
+                    deposit: 7.50,
+                    category: categories.manicure.id,
+                    serviceCategory: service_schema_1.ServiceCategory.MANICURE,
+                },
+                {
+                    name: 'Manicure + Normal Polish',
+                    description: 'Full manicure with normal polish application',
+                    price: 35.00,
+                    duration: 60,
+                    deposit: 9.50,
+                    category: categories.manicure.id,
+                    serviceCategory: service_schema_1.ServiceCategory.MANICURE,
+                },
+                {
+                    name: 'Manicure + Gel Polish',
+                    description: 'Full manicure with gel polish application',
+                    price: 45.00,
+                    duration: 75,
+                    deposit: 14.00,
+                    category: categories.manicure.id,
+                    serviceCategory: service_schema_1.ServiceCategory.MANICURE,
+                },
+                {
+                    name: 'Basic Pedicure',
+                    description: 'Classic pedicure treatment',
+                    price: 45.00,
+                    duration: 45,
+                    deposit: 15.00,
+                    category: categories.pedicure.id,
+                    serviceCategory: service_schema_1.ServiceCategory.PEDICURE,
+                },
+                {
+                    name: 'Luxury Spa Pedicure',
+                    description: 'Premium pedicure with extended massage',
+                    price: 65.00,
+                    duration: 60,
+                    deposit: 20.00,
+                    category: categories.pedicure.id,
+                    serviceCategory: service_schema_1.ServiceCategory.PEDICURE,
+                },
+                {
+                    name: 'Basic Nail Art',
+                    description: 'Simple nail art designs',
+                    price: 15.00,
+                    duration: 30,
+                    deposit: 5.00,
+                    category: categories.nailArt.id,
+                    serviceCategory: service_schema_1.ServiceCategory.NAIL_ART,
+                },
+                {
+                    name: 'Bridal Package',
+                    description: 'Complete nail care package for brides',
+                    price: 120.00,
+                    duration: 120,
+                    deposit: 40.00,
+                    category: categories.special.id,
+                    serviceCategory: service_schema_1.ServiceCategory.SPECIAL,
+                },
+            ];
+            await this.serviceModel.create(servicesToCreate);
+        }
+        catch (error) {
+            console.error('Error creating services:', error);
+            throw error;
+        }
+    }
+};
+exports.ServicesSeedService = ServicesSeedService;
+exports.ServicesSeedService = ServicesSeedService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
+    __param(1, (0, mongoose_1.InjectModel)(category_schema_1.Category.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object])
+], ServicesSeedService);
 
 
 /***/ }),
@@ -2218,6 +2519,16 @@ module.exports = require("handlebars");
 /***/ ((module) => {
 
 module.exports = require("mongoose");
+
+/***/ }),
+
+/***/ "nest-commander":
+/*!*********************************!*\
+  !*** external "nest-commander" ***!
+  \*********************************/
+/***/ ((module) => {
+
+module.exports = require("nest-commander");
 
 /***/ }),
 

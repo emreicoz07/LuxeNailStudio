@@ -1,33 +1,31 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-
-export type AppointmentDocument = Appointment & Document;
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 @Schema({ timestamps: true })
-export class Appointment {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+export class Appointment extends Document {
+  @Prop({ required: true, type: MongooseSchema.Types.ObjectId, ref: 'User' })
+  userId: MongooseSchema.Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Service', required: true })
-  serviceId: Types.ObjectId;
-
-  @Prop({ required: true })
-  appointmentDate: Date;
+  @Prop({ required: true, type: MongooseSchema.Types.ObjectId, ref: 'Service' })
+  serviceId: MongooseSchema.Types.ObjectId;
 
   @Prop({ required: true })
-  amount: number;
+  date: Date;
 
-  @Prop()
-  depositAmount?: number;
+  @Prop({ required: true })
+  startTime: string;
 
-  @Prop({ default: 'PENDING' })
+  @Prop({ required: true })
+  duration: number;
+
+  @Prop({ default: 'pending', enum: ['pending', 'confirmed', 'cancelled', 'completed'] })
   status: string;
 
   @Prop()
-  paymentId?: string;
+  paymentIntentId?: string;
 
-  @Prop({ default: 'UNPAID' })
-  paymentStatus: string;
+  @Prop({ default: false })
+  isPaid: boolean;
 
   @Prop()
   notes?: string;

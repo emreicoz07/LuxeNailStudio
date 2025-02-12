@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { LoginCredentials, RegisterData, AuthResponse } from './types';
+import { Service, CreateServiceDto, ApiResponse, PaginatedResponse } from '../types/schema';
 
 export const api = createApi({
   reducerPath: 'api',
@@ -36,4 +37,12 @@ export const {
   useLoginMutation,
   useRegisterMutation,
   useForgotPasswordMutation,
-} = api; 
+} = api;
+
+export const getServices = async (): Promise<ApiResponse<PaginatedResponse<Service>>> => {
+  // API call implementation
+};
+
+export const createService = async (data: CreateServiceDto): Promise<ApiResponse<Service>> => {
+  // API call implementation
+}; 

@@ -21,6 +21,8 @@ interface Service {
   duration: string;
   price: number;
   category: string;
+  depositRequired?: boolean;
+  depositAmount?: number;
 }
 
 interface TimeSlot {
@@ -37,10 +39,10 @@ interface BookingSummary {
 }
 
 const bookingValidationSchema = z.object({
-  serviceId: z.string().min(1, "Service is required"),
+  serviceId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid service ID format"),
   appointmentDate: z.string().datetime("Invalid date and time"),
   amount: z.number().min(0, "Amount must be positive"),
-  depositAmount: z.number().optional(),
+  depositAmount: z.number().min(0, "Deposit amount must be positive"),
   notes: z.string().optional()
 });
 
@@ -65,48 +67,308 @@ const BookingPage: React.FC = () => {
       id: 'manicure',
       title: 'Manicure',
       icon: <GiNails className="w-8 h-8" />,
-      description: 'Luxurious hand and nail care treatments'
+      description: 'Full range of manicure services including spa, gel, and extensions'
     },
     {
       id: 'pedicure',
       title: 'Pedicure',
       icon: <FaSpa className="w-8 h-8" />,
-      description: 'Rejuvenating foot and nail treatments'
+      description: 'Luxurious pedicure treatments for ultimate foot care'
     }
   ];
 
   const services: Service[] = [
+    // Manicure Services
+    {
+      id: '507f1f77bcf86cd799439001',
+      title: 'Manicure Spa (without polish)',
+      description: 'Soak off in water with aroma oil + scrub cuticles + cleaning cuticles + shape nails',
+      duration: '30 min',
+      price: 15,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 7.50
+    },
+    {
+      id: '507f1f77bcf86cd799439002',
+      title: 'Manicure + Normal Polish',
+      description: 'Normal polish is dried naturally and can be cleaned with acetone',
+      duration: '60 min',
+      price: 19,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 9.50
+    },
+    {
+      id: '507f1f77bcf86cd799439003',
+      title: 'Manicure + Gel Polish',
+      description: 'Semipermanent / Sellac / Gel polish needs to be cured under a UV or LED lamp',
+      duration: '75 min',
+      price: 28,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 14
+    },
+    {
+      id: '507f1f77bcf86cd799439004',
+      title: 'Manicure + Rubber Base',
+      description: 'If your nails need more protection or strengthening, the rubber base may be a better choice',
+      duration: '80 min',
+      price: 31,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 15.50
+    },
+    {
+      id: '507f1f77bcf86cd799439005',
+      title: 'Manicure + Hard Gel',
+      description: 'If you have very weak nails, can use a hard gel to create a solid base',
+      duration: '90 min',
+      price: 33,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 16.50
+    },
+    // Add new manicure services
+    {
+      id: '507f1f77bcf86cd799439006',
+      title: 'Infills + Hard Gel (Short)',
+      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Hard gel.',
+      duration: '2 hr',
+      price: 35,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 17.50
+    },
+    {
+      id: '507f1f77bcf86cd799439007',
+      title: 'Infills + Hard Gel (Medium)',
+      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Hard gel.',
+      duration: '2 hr',
+      price: 37,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 18.50
+    },
+    {
+      id: '507f1f77bcf86cd799439008',
+      title: 'Infills + Hard Gel (Long)',
+      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Hard gel.',
+      duration: '2 hr 15 min',
+      price: 40,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 20
+    },
+    {
+      id: '507f1f77bcf86cd799439009',
+      title: 'Infills + Acrylic (Short)',
+      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Acrylic.',
+      duration: '2 hr',
+      price: 35,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 17.50
+    },
+    {
+      id: '507f1f77bcf86cd799439010',
+      title: 'Infills + Acrylic (Medium)',
+      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Acrylic.',
+      duration: '2 hr',
+      price: 37,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 18.50
+    },
     {
       id: '507f1f77bcf86cd799439011',
-      title: 'Classic Manicure',
-      description: 'Essential nail care with regular polish',
-      duration: '45 min',
-      price: 35,
-      category: 'manicure'
+      title: 'Infills + Acrylic (Long)',
+      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Acrylic.',
+      duration: '2 hr 15 min',
+      price: 40,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 20
     },
     {
       id: '507f1f77bcf86cd799439012',
-      title: 'Gel Manicure',
-      description: 'Long-lasting gel polish with nail care',
-      duration: '60 min',
-      price: 45,
-      category: 'manicure'
+      title: 'Full Set Extension + Hard Gel (Short)',
+      description: 'Gel nail extension is a process that involves Hard gel built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
+      duration: '2 hr',
+      price: 50,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 25
     },
     {
       id: '507f1f77bcf86cd799439013',
-      title: 'Classic Pedicure',
-      description: 'Relaxing foot care with regular polish',
-      duration: '50 min',
-      price: 40,
-      category: 'pedicure'
+      title: 'Full Set Extension + Hard Gel (Medium)',
+      description: 'Gel nail extension is a process that involves Hard gel built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
+      duration: '2 hr 20 min',
+      price: 55,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 27.50
     },
     {
       id: '507f1f77bcf86cd799439014',
-      title: 'Gel Pedicure',
-      description: 'Premium foot care with gel polish',
-      duration: '65 min',
+      title: 'Full Set Extension + Hard Gel (Long)',
+      description: 'Gel nail extension is a process that involves Hard gel built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
+      duration: '2 hr 30 min',
+      price: 60,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 30
+    },
+    {
+      id: '507f1f77bcf86cd799439015',
+      title: 'Full Set Extension + Acrylic (Short)',
+      description: 'Gel nail extension is a process that involves Acrylic built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
+      duration: '2 hr',
       price: 50,
-      category: 'pedicure'
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 25
+    },
+    {
+      id: '507f1f77bcf86cd799439016',
+      title: 'Full Set Extension + Acrylic (Medium)',
+      description: 'Gel nail extension is a process that involves Acrylic built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
+      duration: '2 hr 20 min',
+      price: 55,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 27.50
+    },
+    {
+      id: '507f1f77bcf86cd799439017',
+      title: 'Full Set Extension + Acrylic (Long)',
+      description: 'Gel nail extension is a process that involves Acrylic built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
+      duration: '2 hr 30 min',
+      price: 60,
+      category: 'manicure',
+      depositRequired: true,
+      depositAmount: 30
+    },
+
+    // Service Add-ons for Manicure
+    {
+      id: '507f1f77bcf86cd799439018',
+      title: 'Nail Arts',
+      description: 'From 2 euro each',
+      duration: '10 min',
+      price: 2,
+      category: 'manicure',
+      depositRequired: false
+    },
+    {
+      id: '507f1f77bcf86cd799439019',
+      title: 'French/Ombre',
+      description: 'French or ombre nail design',
+      duration: '20 min',
+      price: 5,
+      category: 'manicure',
+      depositRequired: false
+    },
+
+    // Pedicure Services
+    {
+      id: '507f1f77bcf86cd799439020',
+      title: 'Pedicure Spa (without polish)',
+      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation',
+      duration: '45 min',
+      price: 30,
+      category: 'pedicure',
+      depositRequired: true,
+      depositAmount: 15
+    },
+    {
+      id: '507f1f77bcf86cd799439021',
+      title: 'Pedicure Spa Only (For Gentleman)',
+      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation, for gentleman',
+      duration: '45 min',
+      price: 32,
+      category: 'pedicure',
+      depositRequired: true,
+      depositAmount: 16
+    },
+    {
+      id: '507f1f77bcf86cd799439022',
+      title: 'Toes Normal Polish (without spa)',
+      description: 'Basic toe nail polish application',
+      duration: '50 min',
+      price: 18,
+      category: 'pedicure',
+      depositRequired: true,
+      depositAmount: 9.50
+    },
+    {
+      id: '507f1f77bcf86cd799439023',
+      title: 'Toes Gel Polish (Without Spa)',
+      description: 'Includes cleaning cuticles and shape nails + application of Gel polish',
+      duration: '50 min',
+      price: 25,
+      category: 'pedicure',
+      depositRequired: true,
+      depositAmount: 12.50
+    },
+    {
+      id: '507f1f77bcf86cd799439024',
+      title: 'Pedicure Spa + Normal Polish',
+      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation + application of Normal polish',
+      duration: '75 min',
+      price: 35,
+      category: 'pedicure',
+      depositRequired: true,
+      depositAmount: 17.50
+    },
+    {
+      id: '507f1f77bcf86cd799439025',
+      title: 'Pedicure Spa + Gel Polish',
+      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation + application of Gel polish',
+      duration: '75 min',
+      price: 40,
+      category: 'pedicure',
+      depositRequired: true,
+      depositAmount: 20
+    },
+
+    // Add service add-ons for both categories
+    {
+      id: '507f1f77bcf86cd799439026',
+      title: 'Take off gel polish',
+      description: 'Removal of existing gel polish',
+      duration: '15 min',
+      price: 10,
+      category: 'pedicure',
+      depositRequired: false
+    },
+    {
+      id: '507f1f77bcf86cd799439027',
+      title: 'Take off hard gel',
+      description: 'Removal of existing hard gel',
+      duration: '20 min',
+      price: 12,
+      category: 'pedicure',
+      depositRequired: false
+    },
+    {
+      id: '507f1f77bcf86cd799439028',
+      title: 'Take off acrylic',
+      description: 'Removal of existing acrylic',
+      duration: '30 min',
+      price: 12,
+      category: 'pedicure',
+      depositRequired: false
+    },
+    {
+      id: '507f1f77bcf86cd799439029',
+      title: 'Nail effects (Magnetic)',
+      description: 'Special magnetic nail effects',
+      duration: '15 min',
+      price: 5,
+      category: 'pedicure',
+      depositRequired: false
     }
   ];
 
@@ -197,14 +459,10 @@ const BookingPage: React.FC = () => {
     setValidationErrors({});
     
     try {
-      // Parse the time string into hours and minutes
       const [hours, minutes] = selectedTime.match(/(\d+):(\d+)/)?.slice(1).map(Number) || [0, 0];
       const period = selectedTime.toLowerCase().includes('pm') ? 'PM' : 'AM';
-      
-      // Convert to 24-hour format if PM
       const hour24 = period === 'PM' && hours !== 12 ? hours + 12 : hours;
       
-      // Create a new date object and set the hours and minutes
       const appointmentDateTime = new Date(selectedDate);
       appointmentDateTime.setHours(hour24, minutes, 0, 0);
 
@@ -216,9 +474,13 @@ const BookingPage: React.FC = () => {
         serviceId: service.id,
         appointmentDate: appointmentDateTime.toISOString(),
         amount: service.price,
-        depositAmount: service.price >= 50 ? Math.round(service.price * 0.2) : 0,
+        depositAmount: service.depositAmount || (service.price >= 50 ? Math.round(service.price * 0.2) : 0),
         notes: '',
       };
+
+      if (!/^[0-9a-fA-F]{24}$/.test(bookingData.serviceId)) {
+        throw new Error('Invalid service ID format');
+      }
 
       const validatedData = bookingValidationSchema.parse(bookingData);
       createBookingMutation.mutate(validatedData);
