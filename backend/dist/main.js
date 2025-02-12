@@ -604,6 +604,13 @@ let EmailService = EmailService_1 = class EmailService {
             const html = template({
                 name,
                 websiteName: this.configService.get('WEBSITE_NAME', 'Nail Studio'),
+                bookingUrl: `${this.configService.get('FRONTEND_URL')}/appointments`,
+                phoneNumber: this.configService.get('BUSINESS_PHONE'),
+                businessAddress: this.configService.get('BUSINESS_ADDRESS'),
+                instagramUrl: this.configService.get('INSTAGRAM_URL'),
+                facebookUrl: this.configService.get('FACEBOOK_URL'),
+                pinterestUrl: this.configService.get('PINTEREST_URL'),
+                unsubscribeUrl: `${this.configService.get('FRONTEND_URL')}/unsubscribe?email=${email}`,
             });
             await this.transporter.sendMail({
                 from: `"${this.configService.get('WEBSITE_NAME', 'Nail Studio')}" <${this.configService.get('GMAIL_USER')}>`,
@@ -615,6 +622,7 @@ let EmailService = EmailService_1 = class EmailService {
         }
         catch (error) {
             this.logger.error(`Failed to send welcome email to ${email}:`, error);
+            throw error;
         }
     }
 };

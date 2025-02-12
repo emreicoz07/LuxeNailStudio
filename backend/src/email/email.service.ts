@@ -49,6 +49,13 @@ export class EmailService {
       const html = template({
         name,
         websiteName: this.configService.get<string>('WEBSITE_NAME', 'Nail Studio'),
+        bookingUrl: `${this.configService.get<string>('FRONTEND_URL')}/appointments`,
+        phoneNumber: this.configService.get<string>('BUSINESS_PHONE'),
+        businessAddress: this.configService.get<string>('BUSINESS_ADDRESS'),
+        instagramUrl: this.configService.get<string>('INSTAGRAM_URL'),
+        facebookUrl: this.configService.get<string>('FACEBOOK_URL'),
+        pinterestUrl: this.configService.get<string>('PINTEREST_URL'),
+        unsubscribeUrl: `${this.configService.get<string>('FRONTEND_URL')}/unsubscribe?email=${email}`,
       });
 
       await this.transporter.sendMail({
@@ -61,7 +68,7 @@ export class EmailService {
       this.logger.log(`Welcome email sent to ${email}`);
     } catch (error) {
       this.logger.error(`Failed to send welcome email to ${email}:`, error);
-      // Don't throw the error to prevent registration failure
+      throw error;
     }
   }
 } 
