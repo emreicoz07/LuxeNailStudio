@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
-import { Logger } from '@nestjs/common';
+import { ServicesModule } from './services/services.module';
+import { BookingsModule } from './bookings/bookings.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -13,14 +15,26 @@ import { Logger } from '@nestjs/common';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const uri = configService.get<string>('MONGODB_URI');
-        Logger.log(`Attempting to connect to MongoDB with URI: ${uri}`);
+        const options = {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          retryWrites: true,
+          dbName: 'nail-studio',
+        };
+        
+        Logger.log(`Attempting to connect to MongoDB nail-studio database`);
+        
         return {
-          uri,
+          uri: uri || 'mongodb://localhost:27017/nail-studio',
+          ...options
         };
       },
       inject: [ConfigService],
     }),
     AuthModule,
+    ServicesModule,
+    BookingsModule,
+    StripeModule,
   ],
 })
 export class AppModule {} 

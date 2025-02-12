@@ -21,7 +21,9 @@ const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const auth_module_1 = __webpack_require__(/*! ./auth/auth.module */ "./src/auth/auth.module.ts");
-const common_2 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const services_module_1 = __webpack_require__(/*! ./services/services.module */ "./src/services/services.module.ts");
+const bookings_module_1 = __webpack_require__(/*! ./bookings/bookings.module */ "./src/bookings/bookings.module.ts");
+const stripe_module_1 = __webpack_require__(/*! ./stripe/stripe.module */ "./src/stripe/stripe.module.ts");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -35,14 +37,24 @@ exports.AppModule = AppModule = __decorate([
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => {
                     const uri = configService.get('MONGODB_URI');
-                    common_2.Logger.log(`Attempting to connect to MongoDB with URI: ${uri}`);
+                    const options = {
+                        useNewUrlParser: true,
+                        useUnifiedTopology: true,
+                        retryWrites: true,
+                        dbName: 'nail-studio',
+                    };
+                    common_1.Logger.log(`Attempting to connect to MongoDB nail-studio database`);
                     return {
-                        uri,
+                        uri: uri || 'mongodb://localhost:27017/nail-studio',
+                        ...options
                     };
                 },
                 inject: [config_1.ConfigService],
             }),
             auth_module_1.AuthModule,
+            services_module_1.ServicesModule,
+            bookings_module_1.BookingsModule,
+            stripe_module_1.StripeModule,
         ],
     })
 ], AppModule);
@@ -582,6 +594,325 @@ exports.UserSchema.methods.toJSON = function () {
 
 /***/ }),
 
+/***/ "./src/bookings/bookings.controller.ts":
+/*!*********************************************!*\
+  !*** ./src/bookings/bookings.controller.ts ***!
+  \*********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BookingsController = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const bookings_service_1 = __webpack_require__(/*! ./bookings.service */ "./src/bookings/bookings.service.ts");
+const auth_1 = __webpack_require__(/*! ../middleware/auth */ "./src/middleware/auth.ts");
+const create_booking_dto_1 = __webpack_require__(/*! ./dto/create-booking.dto */ "./src/bookings/dto/create-booking.dto.ts");
+const stripe_service_1 = __webpack_require__(/*! ../stripe/stripe.service */ "./src/stripe/stripe.service.ts");
+let BookingsController = class BookingsController {
+    constructor(bookingsService, stripeService) {
+        this.bookingsService = bookingsService;
+        this.stripeService = stripeService;
+    }
+    async createBooking(req, createBookingDto) {
+        const paymentIntent = await this.stripeService.createPaymentIntent({
+            amount: createBookingDto.depositAmount || createBookingDto.amount,
+            currency: 'usd',
+        });
+        return this.bookingsService.create({
+            ...createBookingDto,
+            userId: req.user.id,
+            paymentId: paymentIntent.id,
+            paymentStatus: 'UNPAID'
+        });
+    }
+    async getBooking(req, id) {
+        return this.bookingsService.findOne(id, req.user.id);
+    }
+    async cancelBooking(req, id) {
+        const booking = await this.bookingsService.cancel(id, req.user.id);
+        if (booking.paymentId && booking.paymentStatus !== 'UNPAID') {
+            await this.stripeService.createRefund(booking.paymentId);
+        }
+        return booking;
+    }
+};
+exports.BookingsController = BookingsController;
+__decorate([
+    (0, common_1.Post)(),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, typeof (_c = typeof create_booking_dto_1.CreateBookingDto !== "undefined" && create_booking_dto_1.CreateBookingDto) === "function" ? _c : Object]),
+    __metadata("design:returntype", Promise)
+], BookingsController.prototype, "createBooking", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], BookingsController.prototype, "getBooking", null);
+__decorate([
+    (0, common_1.Put)(':id/cancel'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], BookingsController.prototype, "cancelBooking", null);
+exports.BookingsController = BookingsController = __decorate([
+    (0, common_1.Controller)('bookings'),
+    (0, common_1.UseGuards)(auth_1.AuthMiddleware),
+    __metadata("design:paramtypes", [typeof (_a = typeof bookings_service_1.BookingsService !== "undefined" && bookings_service_1.BookingsService) === "function" ? _a : Object, typeof (_b = typeof stripe_service_1.StripeService !== "undefined" && stripe_service_1.StripeService) === "function" ? _b : Object])
+], BookingsController);
+
+
+/***/ }),
+
+/***/ "./src/bookings/bookings.module.ts":
+/*!*****************************************!*\
+  !*** ./src/bookings/bookings.module.ts ***!
+  \*****************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BookingsModule = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const bookings_controller_1 = __webpack_require__(/*! ./bookings.controller */ "./src/bookings/bookings.controller.ts");
+const bookings_service_1 = __webpack_require__(/*! ./bookings.service */ "./src/bookings/bookings.service.ts");
+const appointment_schema_1 = __webpack_require__(/*! ./schemas/appointment.schema */ "./src/bookings/schemas/appointment.schema.ts");
+const stripe_module_1 = __webpack_require__(/*! ../stripe/stripe.module */ "./src/stripe/stripe.module.ts");
+const jwt_1 = __webpack_require__(/*! @nestjs/jwt */ "@nestjs/jwt");
+const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+let BookingsModule = class BookingsModule {
+};
+exports.BookingsModule = BookingsModule;
+exports.BookingsModule = BookingsModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            mongoose_1.MongooseModule.forFeature([{ name: appointment_schema_1.Appointment.name, schema: appointment_schema_1.AppointmentSchema }]),
+            stripe_module_1.StripeModule,
+            jwt_1.JwtModule.registerAsync({
+                imports: [config_1.ConfigModule],
+                useFactory: async (configService) => ({
+                    secret: configService.get('JWT_SECRET') || 'your-secret-key',
+                    signOptions: { expiresIn: '24h' },
+                }),
+                inject: [config_1.ConfigService],
+            }),
+        ],
+        controllers: [bookings_controller_1.BookingsController],
+        providers: [bookings_service_1.BookingsService],
+    })
+], BookingsModule);
+
+
+/***/ }),
+
+/***/ "./src/bookings/bookings.service.ts":
+/*!******************************************!*\
+  !*** ./src/bookings/bookings.service.ts ***!
+  \******************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BookingsService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const appointment_schema_1 = __webpack_require__(/*! ./schemas/appointment.schema */ "./src/bookings/schemas/appointment.schema.ts");
+let BookingsService = class BookingsService {
+    constructor(appointmentModel) {
+        this.appointmentModel = appointmentModel;
+    }
+    async create(bookingData) {
+        const newBooking = new this.appointmentModel({
+            ...bookingData,
+            status: 'PENDING'
+        });
+        return newBooking.save();
+    }
+    async findOne(id, userId) {
+        const booking = await this.appointmentModel.findById(id);
+        if (!booking) {
+            throw new common_1.NotFoundException('Booking not found');
+        }
+        if (booking.userId.toString() !== userId) {
+            throw new common_1.UnauthorizedException();
+        }
+        return booking;
+    }
+    async cancel(id, userId) {
+        const booking = await this.findOne(id, userId);
+        if (booking.status === 'CANCELLED') {
+            throw new Error('Booking is already cancelled');
+        }
+        booking.status = 'CANCELLED';
+        return booking.save();
+    }
+};
+exports.BookingsService = BookingsService;
+exports.BookingsService = BookingsService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(appointment_schema_1.Appointment.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], BookingsService);
+
+
+/***/ }),
+
+/***/ "./src/bookings/dto/create-booking.dto.ts":
+/*!************************************************!*\
+  !*** ./src/bookings/dto/create-booking.dto.ts ***!
+  \************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateBookingDto = void 0;
+const class_validator_1 = __webpack_require__(/*! class-validator */ "class-validator");
+class CreateBookingDto {
+}
+exports.CreateBookingDto = CreateBookingDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateBookingDto.prototype, "serviceId", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreateBookingDto.prototype, "appointmentDate", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateBookingDto.prototype, "amount", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateBookingDto.prototype, "depositAmount", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateBookingDto.prototype, "notes", void 0);
+
+
+/***/ }),
+
+/***/ "./src/bookings/schemas/appointment.schema.ts":
+/*!****************************************************!*\
+  !*** ./src/bookings/schemas/appointment.schema.ts ***!
+  \****************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AppointmentSchema = exports.Appointment = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+let Appointment = class Appointment {
+};
+exports.Appointment = Appointment;
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'User', required: true }),
+    __metadata("design:type", typeof (_a = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _a : Object)
+], Appointment.prototype, "userId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Service', required: true }),
+    __metadata("design:type", typeof (_b = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _b : Object)
+], Appointment.prototype, "serviceId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
+], Appointment.prototype, "appointmentDate", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Appointment.prototype, "amount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", Number)
+], Appointment.prototype, "depositAmount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 'PENDING' }),
+    __metadata("design:type", String)
+], Appointment.prototype, "status", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Appointment.prototype, "paymentId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 'UNPAID' }),
+    __metadata("design:type", String)
+], Appointment.prototype, "paymentStatus", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Appointment.prototype, "notes", void 0);
+exports.Appointment = Appointment = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], Appointment);
+exports.AppointmentSchema = mongoose_1.SchemaFactory.createForClass(Appointment);
+
+
+/***/ }),
+
 /***/ "./src/config/database.config.ts":
 /*!***************************************!*\
   !*** ./src/config/database.config.ts ***!
@@ -594,15 +925,26 @@ exports.connectToDatabase = void 0;
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
 const mongoose_1 = __webpack_require__(/*! mongoose */ "mongoose");
 exports["default"] = (0, config_1.registerAs)('database', () => ({
-    url: process.env.DATABASE_URL || 'mongodb://localhost:27017/nail-studio',
+    url: process.env.MONGODB_URI || 'mongodb://localhost:27017/nail-studio',
 }));
 const connectToDatabase = async () => {
     try {
-        await mongoose_1.default.connect(process.env.DATABASE_URL || 'mongodb://localhost:27017/nail-studio');
-        console.log('MongoDB connected successfully');
+        const uri = process.env.MONGODB_URI;
+        if (!uri) {
+            throw new Error('MONGODB_URI is not defined in environment variables');
+        }
+        await mongoose_1.default.connect(uri, {
+            retryWrites: true,
+            w: 'majority',
+            maxPoolSize: 10,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+            dbName: 'nail-studio',
+        });
+        console.log('Successfully connected to MongoDB Atlas nail-studio database');
     }
     catch (err) {
-        console.error('MongoDB connection error:', err);
+        console.error('MongoDB Atlas connection error:', err);
         process.exit(1);
     }
 };
@@ -833,6 +1175,355 @@ exports.EmailService = EmailService = EmailService_1 = __decorate([
 
 /***/ }),
 
+/***/ "./src/middleware/auth.ts":
+/*!********************************!*\
+  !*** ./src/middleware/auth.ts ***!
+  \********************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AuthMiddleware = void 0;
+exports.isAdmin = isAdmin;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const jwt_1 = __webpack_require__(/*! @nestjs/jwt */ "@nestjs/jwt");
+let AuthMiddleware = class AuthMiddleware {
+    constructor(jwtService) {
+        this.jwtService = jwtService;
+    }
+    async use(req, res, next) {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            throw new common_1.UnauthorizedException('No token provided');
+        }
+        try {
+            const decoded = this.jwtService.verify(token);
+            req.user = decoded;
+            next();
+        }
+        catch (error) {
+            throw new common_1.UnauthorizedException('Invalid token');
+        }
+    }
+};
+exports.AuthMiddleware = AuthMiddleware;
+exports.AuthMiddleware = AuthMiddleware = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _a : Object])
+], AuthMiddleware);
+function isAdmin(req, res, next) {
+    const user = req.user;
+    if (user?.role !== 'admin') {
+        throw new common_1.UnauthorizedException('Admin access required');
+    }
+    next();
+}
+
+
+/***/ }),
+
+/***/ "./src/services/schemas/service.schema.ts":
+/*!************************************************!*\
+  !*** ./src/services/schemas/service.schema.ts ***!
+  \************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServiceSchema = exports.Service = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+let Service = class Service {
+};
+exports.Service = Service;
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Service.prototype, "name", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Service.prototype, "description", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Service.prototype, "price", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Service.prototype, "duration", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Service.prototype, "image", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], Service.prototype, "isActive", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [String], default: [] }),
+    __metadata("design:type", Array)
+], Service.prototype, "categories", void 0);
+exports.Service = Service = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], Service);
+exports.ServiceSchema = mongoose_1.SchemaFactory.createForClass(Service);
+
+
+/***/ }),
+
+/***/ "./src/services/services.controller.ts":
+/*!*********************************************!*\
+  !*** ./src/services/services.controller.ts ***!
+  \*********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServicesController = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const services_service_1 = __webpack_require__(/*! ./services.service */ "./src/services/services.service.ts");
+let ServicesController = class ServicesController {
+    constructor(servicesService) {
+        this.servicesService = servicesService;
+    }
+    async getAllServices() {
+        return this.servicesService.findAll();
+    }
+    async getServiceById(id) {
+        return this.servicesService.findById(id);
+    }
+};
+exports.ServicesController = ServicesController;
+__decorate([
+    (0, common_1.Get)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ServicesController.prototype, "getAllServices", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ServicesController.prototype, "getServiceById", null);
+exports.ServicesController = ServicesController = __decorate([
+    (0, common_1.Controller)('services'),
+    __metadata("design:paramtypes", [typeof (_a = typeof services_service_1.ServicesService !== "undefined" && services_service_1.ServicesService) === "function" ? _a : Object])
+], ServicesController);
+
+
+/***/ }),
+
+/***/ "./src/services/services.module.ts":
+/*!*****************************************!*\
+  !*** ./src/services/services.module.ts ***!
+  \*****************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServicesModule = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const services_controller_1 = __webpack_require__(/*! ./services.controller */ "./src/services/services.controller.ts");
+const services_service_1 = __webpack_require__(/*! ./services.service */ "./src/services/services.service.ts");
+const service_schema_1 = __webpack_require__(/*! ./schemas/service.schema */ "./src/services/schemas/service.schema.ts");
+let ServicesModule = class ServicesModule {
+};
+exports.ServicesModule = ServicesModule;
+exports.ServicesModule = ServicesModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            mongoose_1.MongooseModule.forFeature([{ name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema }])
+        ],
+        controllers: [services_controller_1.ServicesController],
+        providers: [services_service_1.ServicesService],
+        exports: [services_service_1.ServicesService]
+    })
+], ServicesModule);
+
+
+/***/ }),
+
+/***/ "./src/services/services.service.ts":
+/*!******************************************!*\
+  !*** ./src/services/services.service.ts ***!
+  \******************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServicesService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const service_schema_1 = __webpack_require__(/*! ./schemas/service.schema */ "./src/services/schemas/service.schema.ts");
+let ServicesService = class ServicesService {
+    constructor(serviceModel) {
+        this.serviceModel = serviceModel;
+    }
+    async findAll() {
+        return this.serviceModel.find({ isActive: true }).exec();
+    }
+    async findById(id) {
+        const service = await this.serviceModel.findById(id).exec();
+        if (!service) {
+            throw new common_1.NotFoundException('Service not found');
+        }
+        return service;
+    }
+};
+exports.ServicesService = ServicesService;
+exports.ServicesService = ServicesService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+], ServicesService);
+
+
+/***/ }),
+
+/***/ "./src/stripe/stripe.module.ts":
+/*!*************************************!*\
+  !*** ./src/stripe/stripe.module.ts ***!
+  \*************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.StripeModule = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+const stripe_service_1 = __webpack_require__(/*! ./stripe.service */ "./src/stripe/stripe.service.ts");
+let StripeModule = class StripeModule {
+};
+exports.StripeModule = StripeModule;
+exports.StripeModule = StripeModule = __decorate([
+    (0, common_1.Module)({
+        imports: [config_1.ConfigModule],
+        providers: [stripe_service_1.StripeService],
+        exports: [stripe_service_1.StripeService],
+    })
+], StripeModule);
+
+
+/***/ }),
+
+/***/ "./src/stripe/stripe.service.ts":
+/*!**************************************!*\
+  !*** ./src/stripe/stripe.service.ts ***!
+  \**************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.StripeService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+const stripe_1 = __webpack_require__(/*! stripe */ "stripe");
+let StripeService = class StripeService {
+    constructor(configService) {
+        this.configService = configService;
+        const stripeKey = this.configService.get('STRIPE_SECRET_KEY');
+        if (!stripeKey) {
+            throw new Error('STRIPE_SECRET_KEY is not defined in environment variables');
+        }
+        this.stripe = new stripe_1.default(stripeKey, {
+            apiVersion: '2025-01-27.acacia',
+        });
+    }
+    async createPaymentIntent(params) {
+        return this.stripe.paymentIntents.create({
+            amount: Math.round(params.amount * 100),
+            currency: params.currency,
+            automatic_payment_methods: {
+                enabled: true,
+            },
+        });
+    }
+    async createRefund(paymentIntentId) {
+        return this.stripe.refunds.create({
+            payment_intent: paymentIntentId,
+        });
+    }
+};
+exports.StripeService = StripeService;
+exports.StripeService = StripeService = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object])
+], StripeService);
+
+
+/***/ }),
+
 /***/ "@nestjs/common":
 /*!*********************************!*\
   !*** external "@nestjs/common" ***!
@@ -943,6 +1634,16 @@ module.exports = require("nodemailer");
 
 /***/ }),
 
+/***/ "stripe":
+/*!*************************!*\
+  !*** external "stripe" ***!
+  \*************************/
+/***/ ((module) => {
+
+module.exports = require("stripe");
+
+/***/ }),
+
 /***/ "crypto":
 /*!*************************!*\
   !*** external "crypto" ***!
@@ -1018,8 +1719,10 @@ async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.setGlobalPrefix('api');
     app.enableCors({
-        origin: 'http://localhost:5173',
+        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
     });
     app.useGlobalPipes(new common_1.ValidationPipe({
         transform: true,
