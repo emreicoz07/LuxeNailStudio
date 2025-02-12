@@ -50,14 +50,24 @@ class AuthService {
   async register(data: RegisterData) {
     try {
       const response = await axiosInstance.post(`${API_URL}/register`, data);
+      
+      // Check if we have a successful response with token
       if (response.data.token) {
+        // Store token and user data
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        // Return the response data
+        return response.data;
+      } else {
+        throw new Error('Registration successful but no token received');
       }
-      return response.data;
     } catch (error) {
       console.error('Registration error:', error.response?.data);
-      throw error;
+      // Throw the error with a more specific message
+      throw error.response?.data?.message 
+        ? error 
+        : new Error('Registration failed. Please try again later.');
     }
   }
 

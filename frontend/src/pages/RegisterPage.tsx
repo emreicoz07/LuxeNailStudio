@@ -78,12 +78,24 @@ const RegisterPage = () => {
         agreeToTerms: data.agreeToTerms
       };
       
-      await authService.register(registrationData);
-      toast.success('Registration successful! Please check your email to verify your account.');
-      navigate('/login');
+      const response = await authService.register(registrationData);
+      
+      toast.success('Registration successful! Redirecting to login...', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(error.response?.data?.message || 'Registration failed');
+      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
