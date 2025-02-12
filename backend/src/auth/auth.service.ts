@@ -8,6 +8,7 @@ import { User, UserDocument } from './schemas/user.schema';
 import { Logger } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { EmailService } from '../email/email.service';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -111,5 +112,73 @@ export class AuthService {
       },
       token
     };
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    try {
+      const user = await this.userModel.findOne({ email });
+      
+      // Always return success even if email doesn't exist (security best practice)
+      if (!user) {
+        this.logger.warn(`Password reset requested for non-existent email: ${email}`);
+        return;
+      }
+
+      // Generate reset token
+      const resetToken = randomBytes(32).toString('hex');
+      const resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Save reset token and expiry to user
+      await this.userModel.updateOne(
+        { _id: user._id },
+        {
+          resetPasswordToken: resetToken,
+          resetPasswordExpires,
+        }
+      );
+
+      this.logger.log(`Reset token generated for user: ${email}`);
+
+      // Send reset email
+      await this.emailService.sendPasswordResetEmail(
+        user.email,
+        user.name,
+        resetToken
+      );
+
+      this.logger.log(`Password reset process completed for user: ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to process forgot password for ${email}:`, error);
+      throw new Error('Failed to process password reset request. Please try again later.');
+    }
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.userModel.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      await this.userModel.updateOne(
+        { _id: user._id },
+        {
+          password: hashedPassword,
+          resetPasswordToken: undefined,
+          resetPasswordExpires: undefined,
+        }
+      );
+
+      this.logger.log(`Password reset successful for user: ${user.email}`);
+    } catch (error) {
+      this.logger.error(`Failed to reset password for user ${user.email}:`, error);
+      throw new Error('Failed to reset password');
+    }
   }
 } 

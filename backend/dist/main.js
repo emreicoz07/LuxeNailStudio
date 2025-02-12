@@ -69,13 +69,14 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthController = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const auth_service_1 = __webpack_require__(/*! ./auth.service */ "./src/auth/auth.service.ts");
 const register_dto_1 = __webpack_require__(/*! ./dto/register.dto */ "./src/auth/dto/register.dto.ts");
 const login_dto_1 = __webpack_require__(/*! ./dto/login.dto */ "./src/auth/dto/login.dto.ts");
+const forgot_password_dto_1 = __webpack_require__(/*! ./dto/forgot-password.dto */ "./src/auth/dto/forgot-password.dto.ts");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -85,6 +86,14 @@ let AuthController = class AuthController {
     }
     async register(registerDto) {
         return this.authService.register(registerDto);
+    }
+    async forgotPassword(forgotPasswordDto) {
+        await this.authService.forgotPassword(forgotPasswordDto.email);
+        return { message: 'If an account exists with this email, you will receive password reset instructions.' };
+    }
+    async resetPassword(token, newPassword) {
+        await this.authService.resetPassword(token, newPassword);
+        return { message: 'Password has been reset successfully' };
     }
 };
 exports.AuthController = AuthController;
@@ -102,6 +111,21 @@ __decorate([
     __metadata("design:paramtypes", [typeof (_c = typeof register_dto_1.RegisterDto !== "undefined" && register_dto_1.RegisterDto) === "function" ? _c : Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "register", null);
+__decorate([
+    (0, common_1.Post)('forgot-password'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_d = typeof forgot_password_dto_1.ForgotPasswordDto !== "undefined" && forgot_password_dto_1.ForgotPasswordDto) === "function" ? _d : Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "forgotPassword", null);
+__decorate([
+    (0, common_1.Post)('reset-password'),
+    __param(0, (0, common_1.Body)('token')),
+    __param(1, (0, common_1.Body)('newPassword')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resetPassword", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [typeof (_a = typeof auth_service_1.AuthService !== "undefined" && auth_service_1.AuthService) === "function" ? _a : Object])
@@ -185,6 +209,7 @@ const jwt_1 = __webpack_require__(/*! @nestjs/jwt */ "@nestjs/jwt");
 const user_schema_1 = __webpack_require__(/*! ./schemas/user.schema */ "./src/auth/schemas/user.schema.ts");
 const common_2 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const email_service_1 = __webpack_require__(/*! ../email/email.service */ "./src/email/email.service.ts");
+const crypto_1 = __webpack_require__(/*! crypto */ "crypto");
 let AuthService = AuthService_1 = class AuthService {
     constructor(userModel, jwtService, emailService) {
         this.userModel = userModel;
@@ -267,6 +292,50 @@ let AuthService = AuthService_1 = class AuthService {
             token
         };
     }
+    async forgotPassword(email) {
+        try {
+            const user = await this.userModel.findOne({ email });
+            if (!user) {
+                this.logger.warn(`Password reset requested for non-existent email: ${email}`);
+                return;
+            }
+            const resetToken = (0, crypto_1.randomBytes)(32).toString('hex');
+            const resetPasswordExpires = new Date(Date.now() + 3600000);
+            await this.userModel.updateOne({ _id: user._id }, {
+                resetPasswordToken: resetToken,
+                resetPasswordExpires,
+            });
+            this.logger.log(`Reset token generated for user: ${email}`);
+            await this.emailService.sendPasswordResetEmail(user.email, user.name, resetToken);
+            this.logger.log(`Password reset process completed for user: ${email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to process forgot password for ${email}:`, error);
+            throw new Error('Failed to process password reset request. Please try again later.');
+        }
+    }
+    async resetPassword(token, newPassword) {
+        const user = await this.userModel.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpires: { $gt: Date.now() },
+        });
+        if (!user) {
+            throw new common_1.BadRequestException('Invalid or expired password reset token');
+        }
+        try {
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            await this.userModel.updateOne({ _id: user._id }, {
+                password: hashedPassword,
+                resetPasswordToken: undefined,
+                resetPasswordExpires: undefined,
+            });
+            this.logger.log(`Password reset successful for user: ${user.email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to reset password for user ${user.email}:`, error);
+            throw new Error('Failed to reset password');
+        }
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = AuthService_1 = __decorate([
@@ -274,6 +343,41 @@ exports.AuthService = AuthService = AuthService_1 = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(user_schema_1.User.name)),
     __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _b : Object, typeof (_c = typeof email_service_1.EmailService !== "undefined" && email_service_1.EmailService) === "function" ? _c : Object])
 ], AuthService);
+
+
+/***/ }),
+
+/***/ "./src/auth/dto/forgot-password.dto.ts":
+/*!*********************************************!*\
+  !*** ./src/auth/dto/forgot-password.dto.ts ***!
+  \*********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ForgotPasswordDto = void 0;
+const class_validator_1 = __webpack_require__(/*! class-validator */ "class-validator");
+const swagger_1 = __webpack_require__(/*! @nestjs/swagger */ "@nestjs/swagger");
+class ForgotPasswordDto {
+}
+exports.ForgotPasswordDto = ForgotPasswordDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'user@example.com',
+        description: 'The email address of the user requesting password reset',
+    }),
+    (0, class_validator_1.IsEmail)({}, { message: 'Please enter a valid email address' }),
+    __metadata("design:type", String)
+], ForgotPasswordDto.prototype, "email", void 0);
 
 
 /***/ }),
@@ -507,6 +611,60 @@ exports.connectToDatabase = connectToDatabase;
 
 /***/ }),
 
+/***/ "./src/email/email.controller.ts":
+/*!***************************************!*\
+  !*** ./src/email/email.controller.ts ***!
+  \***************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmailController = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const email_service_1 = __webpack_require__(/*! ./email.service */ "./src/email/email.service.ts");
+let EmailController = class EmailController {
+    constructor(emailService) {
+        this.emailService = emailService;
+    }
+    async testEmail(body) {
+        try {
+            await this.emailService.sendPasswordResetEmail(body.email, 'Test User', 'test-token-123');
+            return { message: 'Test email sent successfully' };
+        }
+        catch (error) {
+            return { error: error.message };
+        }
+    }
+};
+exports.EmailController = EmailController;
+__decorate([
+    (0, common_1.Post)('test'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], EmailController.prototype, "testEmail", null);
+exports.EmailController = EmailController = __decorate([
+    (0, common_1.Controller)('email'),
+    __metadata("design:paramtypes", [typeof (_a = typeof email_service_1.EmailService !== "undefined" && email_service_1.EmailService) === "function" ? _a : Object])
+], EmailController);
+
+
+/***/ }),
+
 /***/ "./src/email/email.module.ts":
 /*!***********************************!*\
   !*** ./src/email/email.module.ts ***!
@@ -525,12 +683,14 @@ exports.EmailModule = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
 const email_service_1 = __webpack_require__(/*! ./email.service */ "./src/email/email.service.ts");
+const email_controller_1 = __webpack_require__(/*! ./email.controller */ "./src/email/email.controller.ts");
 let EmailModule = class EmailModule {
 };
 exports.EmailModule = EmailModule;
 exports.EmailModule = EmailModule = __decorate([
     (0, common_1.Module)({
         imports: [config_1.ConfigModule],
+        controllers: [email_controller_1.EmailController],
         providers: [email_service_1.EmailService],
         exports: [email_service_1.EmailService],
     })
@@ -569,23 +729,29 @@ let EmailService = EmailService_1 = class EmailService {
     constructor(configService) {
         this.configService = configService;
         this.logger = new common_1.Logger(EmailService_1.name);
+        this.logger.log('Initializing email service...');
+        const emailUser = this.configService.get('GMAIL_USER');
+        this.logger.log(`Email configured for: ${emailUser}`);
         this.transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 587,
             secure: false,
             auth: {
-                user: this.configService.get('GMAIL_USER'),
+                user: emailUser,
                 pass: this.configService.get('GMAIL_APP_PASSWORD'),
             },
         });
-        this.transporter.verify((error) => {
-            if (error) {
-                this.logger.error('Error connecting to email server:', error);
-            }
-            else {
-                this.logger.log('Ready to send emails');
-            }
-        });
+        this.verifyConnection();
+    }
+    async verifyConnection() {
+        try {
+            await this.transporter.verify();
+            this.logger.log('Email service connected successfully');
+        }
+        catch (error) {
+            this.logger.error('Email service connection failed:', error);
+            throw error;
+        }
     }
     async loadTemplate(templateName) {
         const templatePath = path.join(process.cwd(), 'src', 'templates', `${templateName}.hbs`);
@@ -623,6 +789,38 @@ let EmailService = EmailService_1 = class EmailService {
         catch (error) {
             this.logger.error(`Failed to send welcome email to ${email}:`, error);
             throw error;
+        }
+    }
+    async sendPasswordResetEmail(email, name, resetToken) {
+        try {
+            this.logger.log('Loading reset password template...');
+            const template = await this.loadTemplate('reset-password');
+            const resetUrl = `${this.configService.get('FRONTEND_URL')}/reset-password?token=${resetToken}`;
+            this.logger.log(`Reset URL generated: ${resetUrl}`);
+            const html = template({
+                name,
+                resetUrl,
+                websiteName: this.configService.get('WEBSITE_NAME', 'Nail Studio'),
+                phoneNumber: this.configService.get('BUSINESS_PHONE'),
+                businessAddress: this.configService.get('BUSINESS_ADDRESS'),
+            });
+            const mailOptions = {
+                from: `"${this.configService.get('WEBSITE_NAME', 'Nail Studio')}" <${this.configService.get('GMAIL_USER')}>`,
+                to: email,
+                subject: 'Reset Your Password',
+                html,
+            };
+            this.logger.log('Preparing to send password reset email...');
+            this.logger.debug('Mail options:', { ...mailOptions, html: 'HTML content hidden' });
+            await this.transporter.sendMail(mailOptions);
+            this.logger.log(`Password reset email sent successfully to ${email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send password reset email to ${email}:`, error);
+            if (error.code) {
+                this.logger.error(`Error code: ${error.code}`);
+            }
+            throw new Error('Failed to send password reset email. Please try again later.');
         }
     }
 };
@@ -742,6 +940,16 @@ module.exports = require("mongoose");
 /***/ ((module) => {
 
 module.exports = require("nodemailer");
+
+/***/ }),
+
+/***/ "crypto":
+/*!*************************!*\
+  !*** external "crypto" ***!
+  \*************************/
+/***/ ((module) => {
+
+module.exports = require("crypto");
 
 /***/ }),
 

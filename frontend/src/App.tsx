@@ -12,10 +12,12 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import { AuthProvider } from './contexts/AuthContext';
+import { Toaster } from 'react-hot-toast';
 
 const App: React.FC = () => {
   return (
     <AuthProvider>
+      <Toaster position="top-right" />
       <BrowserRouter>
         <div className="flex flex-col min-h-screen">
           <Navbar />

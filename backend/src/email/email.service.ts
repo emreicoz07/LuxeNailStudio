@@ -11,24 +11,34 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
   constructor(private configService: ConfigService) {
+    // Log email configuration on startup
+    this.logger.log('Initializing email service...');
+    const emailUser = this.configService.get<string>('GMAIL_USER');
+    this.logger.log(`Email configured for: ${emailUser}`);
+
     this.transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
       secure: false,
       auth: {
-        user: this.configService.get<string>('GMAIL_USER'),
+        user: emailUser,
         pass: this.configService.get<string>('GMAIL_APP_PASSWORD'),
       },
     });
 
-    // Verify connection
-    this.transporter.verify((error) => {
-      if (error) {
-        this.logger.error('Error connecting to email server:', error);
-      } else {
-        this.logger.log('Ready to send emails');
-      }
-    });
+    // Verify connection immediately
+    this.verifyConnection();
+  }
+
+  private async verifyConnection() {
+    try {
+      await this.transporter.verify();
+      this.logger.log('Email service connected successfully');
+    } catch (error) {
+      this.logger.error('Email service connection failed:', error);
+      // Throw error to prevent app from starting with broken email
+      throw error;
+    }
   }
 
   private async loadTemplate(templateName: string): Promise<HandlebarsTemplateDelegate> {
@@ -69,6 +79,43 @@ export class EmailService {
     } catch (error) {
       this.logger.error(`Failed to send welcome email to ${email}:`, error);
       throw error;
+    }
+  }
+
+  async sendPasswordResetEmail(email: string, name: string, resetToken: string): Promise<void> {
+    try {
+      this.logger.log('Loading reset password template...');
+      const template = await this.loadTemplate('reset-password');
+      
+      const resetUrl = `${this.configService.get<string>('FRONTEND_URL')}/reset-password?token=${resetToken}`;
+      this.logger.log(`Reset URL generated: ${resetUrl}`);
+      
+      const html = template({
+        name,
+        resetUrl,
+        websiteName: this.configService.get<string>('WEBSITE_NAME', 'Nail Studio'),
+        phoneNumber: this.configService.get<string>('BUSINESS_PHONE'),
+        businessAddress: this.configService.get<string>('BUSINESS_ADDRESS'),
+      });
+
+      const mailOptions = {
+        from: `"${this.configService.get<string>('WEBSITE_NAME', 'Nail Studio')}" <${this.configService.get('GMAIL_USER')}>`,
+        to: email,
+        subject: 'Reset Your Password',
+        html,
+      };
+
+      this.logger.log('Preparing to send password reset email...');
+      this.logger.debug('Mail options:', { ...mailOptions, html: 'HTML content hidden' });
+      
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Password reset email sent successfully to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send password reset email to ${email}:`, error);
+      if (error.code) {
+        this.logger.error(`Error code: ${error.code}`);
+      }
+      throw new Error('Failed to send password reset email. Please try again later.');
     }
   }
 } 
