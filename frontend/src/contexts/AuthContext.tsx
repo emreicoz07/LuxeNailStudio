@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { authService } from '../services/authService';
+import { toast } from 'react-hot-toast';
 
 interface User {
   id: string;
@@ -23,7 +24,7 @@ interface AuthContextType {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  logout: (fromAllDevices?: boolean) => Promise<void>;
   clearError: () => void;
 }
 
@@ -78,9 +79,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [clearError]);
 
-  const logout = useCallback(() => {
-    authService.logout();
-    setUser(null);
+  const logout = useCallback(async (fromAllDevices: boolean = false) => {
+    try {
+      if (fromAllDevices) {
+        await authService.logoutAll();
+      } else {
+        await authService.logout();
+      }
+      
+      setUser(null);
+      
+      // Show success message
+      toast.success('Logged out successfully', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      
+      // Force reload to clear any cached data
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout. Please try again.');
+    }
   }, []);
 
   return (

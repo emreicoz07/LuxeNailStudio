@@ -81,7 +81,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthController = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -89,6 +89,8 @@ const auth_service_1 = __webpack_require__(/*! ./auth.service */ "./src/auth/aut
 const register_dto_1 = __webpack_require__(/*! ./dto/register.dto */ "./src/auth/dto/register.dto.ts");
 const login_dto_1 = __webpack_require__(/*! ./dto/login.dto */ "./src/auth/dto/login.dto.ts");
 const forgot_password_dto_1 = __webpack_require__(/*! ./dto/forgot-password.dto */ "./src/auth/dto/forgot-password.dto.ts");
+const auth_1 = __webpack_require__(/*! ../middleware/auth */ "./src/middleware/auth.ts");
+const auth_2 = __webpack_require__(/*! ../middleware/auth */ "./src/middleware/auth.ts");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -106,6 +108,14 @@ let AuthController = class AuthController {
     async resetPassword(token, newPassword) {
         await this.authService.resetPassword(token, newPassword);
         return { message: 'Password has been reset successfully' };
+    }
+    async logout(req) {
+        await this.authService.logout(req.user?.userId);
+        return { message: 'Logged out successfully' };
+    }
+    async logoutAll(req) {
+        await this.authService.logoutAll(req.user?.userId);
+        return { message: 'Logged out from all devices successfully' };
     }
 };
 exports.AuthController = AuthController;
@@ -138,6 +148,22 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "resetPassword", null);
+__decorate([
+    (0, common_1.Post)('logout'),
+    (0, common_1.UseGuards)(auth_1.AuthMiddleware),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_e = typeof auth_2.RequestWithUser !== "undefined" && auth_2.RequestWithUser) === "function" ? _e : Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "logout", null);
+__decorate([
+    (0, common_1.Post)('logout/all'),
+    (0, common_1.UseGuards)(auth_1.AuthMiddleware),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_f = typeof auth_2.RequestWithUser !== "undefined" && auth_2.RequestWithUser) === "function" ? _f : Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "logoutAll", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [typeof (_a = typeof auth_service_1.AuthService !== "undefined" && auth_service_1.AuthService) === "function" ? _a : Object])
@@ -346,6 +372,43 @@ let AuthService = AuthService_1 = class AuthService {
         catch (error) {
             this.logger.error(`Failed to reset password for user ${user.email}:`, error);
             throw new Error('Failed to reset password');
+        }
+    }
+    async logout(userId) {
+        if (!userId) {
+            throw new common_1.UnauthorizedException('User ID is required');
+        }
+        try {
+            await this.userModel.updateOne({ _id: userId }, {
+                $set: {
+                    lastLogout: new Date(),
+                    resetPasswordToken: null,
+                    resetPasswordExpires: null
+                }
+            });
+        }
+        catch (error) {
+            this.logger.error(`Failed to logout user ${userId}:`, error);
+            throw new Error('Failed to process logout request');
+        }
+    }
+    async logoutAll(userId) {
+        if (!userId) {
+            throw new common_1.UnauthorizedException('User ID is required');
+        }
+        try {
+            await this.userModel.updateOne({ _id: userId }, {
+                $set: {
+                    tokenVersion: (Math.random() * 1000000).toString(),
+                    lastLogout: new Date(),
+                    resetPasswordToken: null,
+                    resetPasswordExpires: null
+                }
+            });
+        }
+        catch (error) {
+            this.logger.error(`Failed to logout user ${userId} from all devices:`, error);
+            throw new Error('Failed to process logout from all devices request');
         }
     }
 };
@@ -1208,7 +1271,11 @@ let AuthMiddleware = class AuthMiddleware {
         }
         try {
             const decoded = this.jwtService.verify(token);
-            req.user = decoded;
+            req.user = {
+                userId: decoded.userId,
+                email: decoded.email,
+                role: decoded.role
+            };
             next();
         }
         catch (error) {

@@ -88,10 +88,40 @@ class AuthService {
     }
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
+    try {
+      // Call logout endpoint
+      await axiosInstance.post(`${API_URL}/logout`);
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage and cookies regardless of API call success
+      this.clearAuthData();
+    }
+  }
+
+  async logoutAll(): Promise<void> {
+    try {
+      await axiosInstance.post(`${API_URL}/logout/all`);
+    } catch (error) {
+      console.error('Logout all devices error:', error);
+    } finally {
+      this.clearAuthData();
+    }
+  }
+
+  private clearAuthData(): void {
     // Clear HttpOnly cookie
     document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    
+    // Clear local storage
     localStorage.removeItem('user');
+    
+    // Clear any other auth-related data
+    sessionStorage.removeItem('redirectAfterLogin');
+    
+    // Clear navigation history
+    window.history.replaceState(null, null, '/');
   }
 
   getCurrentUser() {

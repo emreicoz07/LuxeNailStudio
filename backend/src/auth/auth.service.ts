@@ -181,4 +181,49 @@ export class AuthService {
       throw new Error('Failed to reset password');
     }
   }
+
+  async logout(userId?: string): Promise<void> {
+    if (!userId) {
+      throw new UnauthorizedException('User ID is required');
+    }
+
+    try {
+      await this.userModel.updateOne(
+        { _id: userId },
+        { 
+          $set: { 
+            lastLogout: new Date(),
+            resetPasswordToken: null,
+            resetPasswordExpires: null
+          }
+        }
+      );
+    } catch (error) {
+      this.logger.error(`Failed to logout user ${userId}:`, error);
+      throw new Error('Failed to process logout request');
+    }
+  }
+
+  async logoutAll(userId?: string): Promise<void> {
+    if (!userId) {
+      throw new UnauthorizedException('User ID is required');
+    }
+
+    try {
+      await this.userModel.updateOne(
+        { _id: userId },
+        { 
+          $set: { 
+            tokenVersion: (Math.random() * 1000000).toString(),
+            lastLogout: new Date(),
+            resetPasswordToken: null,
+            resetPasswordExpires: null
+          }
+        }
+      );
+    } catch (error) {
+      this.logger.error(`Failed to logout user ${userId} from all devices:`, error);
+      throw new Error('Failed to process logout from all devices request');
+    }
+  }
 } 

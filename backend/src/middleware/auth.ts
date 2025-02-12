@@ -2,9 +2,16 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
 
-// Add interface to extend Request
-interface RequestWithUser extends Request {
-  user?: any; // Replace 'any' with your actual User interface type
+// Define the JWT payload interface
+interface JwtPayload {
+  userId: string;
+  email: string;
+  role: string;
+}
+
+// Update the RequestWithUser interface
+export interface RequestWithUser extends Request {
+  user?: JwtPayload;
 }
 
 @Injectable()
@@ -19,8 +26,13 @@ export class AuthMiddleware {
     }
 
     try {
-      const decoded = this.jwtService.verify(token);
-      req.user = decoded;
+      const decoded = this.jwtService.verify(token) as JwtPayload;
+      // Properly set the user object with the decoded token data
+      req.user = {
+        userId: decoded.userId,
+        email: decoded.email,
+        role: decoded.role
+      };
       next();
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
