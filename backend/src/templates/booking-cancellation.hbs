@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Copy styles from booking-confirmation.hbs */
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="hero">
+        <span class="hero-emoji">❌</span>
+        <h1>Booking Cancelled</h1>
+      </div>
+      
+      <div class="content">
+        <div style="text-align: center;">
+          <p>Dear {{name}},</p>
+          <p>Your booking has been cancelled:</p>
+        </div>
+
+        <div class="booking-details">
+          <div class="booking-title">Cancelled Appointment</div>
+          
+          <div class="detail-item">
+            <span class="detail-label">Service:</span>
+            <span class="detail-value">{{service}}</span>
+          </div>
+          
+          <div class="detail-item">
+            <span class="detail-label">Date:</span>
+            <span class="detail-value">{{date}}</span>
+          </div>
+          
+          <div class="detail-item">
+            <span class="detail-label">Time:</span>
+            <span class="detail-value">{{time}}</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Reason:</span>
+            <span class="detail-value">{{cancelReason}}</span>
+          </div>
+        </div>
+
+        <div style="text-align: center;">
+          <p>Would you like to book another appointment?</p>
+          <a href="{{bookingUrl}}" class="cta-button">
+            Book New Appointment
+          </a>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+          <p>If you have any questions, please contact us at {{businessPhone}}.</p>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>We hope to see you again soon!</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html> 

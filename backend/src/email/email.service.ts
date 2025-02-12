@@ -5,6 +5,8 @@ import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
 import { format } from 'date-fns';
+import { BookingDocument, BookingStatus } from '../bookings/schemas/booking.schema';
+import { addDays, subHours } from 'date-fns';
 
 @Injectable()
 export class EmailService {
@@ -130,43 +132,100 @@ export class EmailService {
       depositAmount: number;
       status: string;
       paymentStatus: string;
+      serviceName: string;
     };
   }): Promise<void> {
     const { email, name, bookingDetails } = params;
     try {
       const template = await this.loadTemplate('booking-confirmation');
-
       const formattedDate = format(bookingDetails.dateTime, 'EEEE, MMMM do, yyyy');
       const formattedTime = format(bookingDetails.dateTime, 'h:mm a');
 
       const html = template({
         name,
-        bookingId: bookingDetails.id,
+        service: bookingDetails.serviceName,
         date: formattedDate,
         time: formattedTime,
-        totalAmount: bookingDetails.totalAmount.toFixed(2),
+        price: bookingDetails.totalAmount.toFixed(2),
         depositAmount: bookingDetails.depositAmount.toFixed(2),
-        remainingAmount: (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2),
-        status: bookingDetails.status,
+        remainingBalance: (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2),
         paymentStatus: bookingDetails.paymentStatus,
-        websiteName: this.configService.get<string>('WEBSITE_NAME', 'Nail Studio'),
         businessAddress: this.configService.get<string>('BUSINESS_ADDRESS'),
-        businessPhone: this.configService.get<string>('BUSINESS_PHONE'),
-        googleMapsUrl: this.configService.get<string>('GOOGLE_MAPS_URL'),
+        phoneNumber: this.configService.get<string>('BUSINESS_PHONE'),
         managementUrl: `${this.configService.get<string>('FRONTEND_URL')}/appointments/${bookingDetails.id}`,
-        cancelUrl: `${this.configService.get<string>('FRONTEND_URL')}/appointments/${bookingDetails.id}/cancel`,
       });
 
       await this.transporter.sendMail({
-        from: `"${this.configService.get<string>('WEBSITE_NAME', 'Nail Studio')}" <${this.configService.get('GMAIL_USER')}>`,
+        from: `"${this.configService.get<string>('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
         to: email,
-        subject: 'Your Booking Confirmation 💅',
+        subject: 'Your Booking is Confirmed! 💅',
         html,
       });
 
       this.logger.log(`Booking confirmation email sent to ${email}`);
     } catch (error) {
       this.logger.error(`Failed to send booking confirmation email to ${email}:`, error);
+      throw error;
+    }
+  }
+
+  async sendBookingReminderEmail(booking: BookingDocument): Promise<void> {
+    try {
+      const template = await this.loadTemplate('booking-reminder');
+      const formattedDate = format(booking.dateTime, 'EEEE, MMMM do, yyyy');
+      const formattedTime = format(booking.dateTime, 'h:mm a');
+
+      const html = template({
+        name: booking.userId.name,
+        service: booking.serviceId.name,
+        date: formattedDate,
+        time: formattedTime,
+        businessAddress: this.configService.get<string>('BUSINESS_ADDRESS'),
+        phoneNumber: this.configService.get<string>('BUSINESS_PHONE'),
+        googleMapsUrl: this.configService.get<string>('GOOGLE_MAPS_URL'),
+        managementUrl: `${this.configService.get<string>('FRONTEND_URL')}/appointments/${booking._id}`,
+      });
+
+      await this.transporter.sendMail({
+        from: `"${this.configService.get<string>('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
+        to: booking.userId.email,
+        subject: 'Reminder: Your Appointment Tomorrow! 🗓️',
+        html,
+      });
+
+      this.logger.log(`Reminder email sent to ${booking.userId.email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send reminder email:`, error);
+      throw error;
+    }
+  }
+
+  async sendBookingCancellationEmail(booking: BookingDocument): Promise<void> {
+    try {
+      const template = await this.loadTemplate('booking-cancellation');
+      const formattedDate = format(booking.dateTime, 'EEEE, MMMM do, yyyy');
+      const formattedTime = format(booking.dateTime, 'h:mm a');
+
+      const html = template({
+        name: booking.userId.name,
+        service: booking.serviceId.name,
+        date: formattedDate,
+        time: formattedTime,
+        cancelReason: booking.cancelReason || 'No reason provided',
+        bookingUrl: `${this.configService.get<string>('FRONTEND_URL')}/booking`,
+        businessPhone: this.configService.get<string>('BUSINESS_PHONE'),
+      });
+
+      await this.transporter.sendMail({
+        from: `"${this.configService.get<string>('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
+        to: booking.userId.email,
+        subject: 'Your Booking Has Been Cancelled',
+        html,
+      });
+
+      this.logger.log(`Cancellation email sent to ${booking.userId.email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send cancellation email:`, error);
       throw error;
     }
   }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Copy styles from booking-confirmation.hbs */
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="hero">
+        <span class="hero-emoji">🗓️</span>
+        <h1>Appointment Reminder</h1>
+      </div>
+      
+      <div class="content">
+        <div style="text-align: center;">
+          <p>Dear {{name}},</p>
+          <p>This is a friendly reminder about your appointment tomorrow:</p>
+        </div>
+
+        <div class="booking-details">
+          <div class="booking-title">Appointment Details</div>
+          
+          <div class="detail-item">
+            <span class="detail-label">Service:</span>
+            <span class="detail-value">{{service}}</span>
+          </div>
+          
+          <div class="detail-item">
+            <span class="detail-label">Date:</span>
+            <span class="detail-value">{{date}}</span>
+          </div>
+          
+          <div class="detail-item">
+            <span class="detail-label">Time:</span>
+            <span class="detail-value">{{time}}</span>
+          </div>
+        </div>
+
+        <div style="text-align: center;">
+          <p>Need to make changes?</p>
+          <a href="{{managementUrl}}" class="cta-button">
+            Manage Booking
+          </a>
+        </div>
+
+        <div class="location-details">
+          <h3>Location</h3>
+          <p>{{businessAddress}}</p>
+          <a href="{{googleMapsUrl}}" class="cta-button">
+            Get Directions
+          </a>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>Questions? We're here to help!</p>
+        <div class="contact-info">
+          <p>{{businessAddress}}<br>
+          {{phoneNumber}}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html> 

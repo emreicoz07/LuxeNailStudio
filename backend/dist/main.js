@@ -25,6 +25,7 @@ const services_module_1 = __webpack_require__(/*! ./services/services.module */ 
 const bookings_module_1 = __webpack_require__(/*! ./bookings/bookings.module */ "./src/bookings/bookings.module.ts");
 const stripe_module_1 = __webpack_require__(/*! ./stripe/stripe.module */ "./src/stripe/stripe.module.ts");
 const email_module_1 = __webpack_require__(/*! ./email/email.module */ "./src/email/email.module.ts");
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -34,6 +35,7 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
             }),
+            schedule_1.ScheduleModule.forRoot(),
             mongoose_1.MongooseModule.forRootAsync({
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => {
@@ -864,6 +866,7 @@ const auth_module_1 = __webpack_require__(/*! ../auth/auth.module */ "./src/auth
 const booking_schema_1 = __webpack_require__(/*! ./schemas/booking.schema */ "./src/bookings/schemas/booking.schema.ts");
 const email_module_1 = __webpack_require__(/*! ../email/email.module */ "./src/email/email.module.ts");
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 let BookingsModule = class BookingsModule {
 };
 exports.BookingsModule = BookingsModule;
@@ -878,6 +881,7 @@ exports.BookingsModule = BookingsModule = __decorate([
             auth_module_1.AuthModule,
             email_module_1.EmailModule,
             config_1.ConfigModule,
+            schedule_1.ScheduleModule.forRoot(),
         ],
         controllers: [bookings_controller_1.BookingsController],
         providers: [bookings_service_1.BookingsService],
@@ -907,6 +911,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var BookingsService_1;
 var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BookingsService = void 0;
@@ -917,12 +922,15 @@ const appointment_schema_1 = __webpack_require__(/*! ./schemas/appointment.schem
 const booking_schema_1 = __webpack_require__(/*! ./schemas/booking.schema */ "./src/bookings/schemas/booking.schema.ts");
 const email_service_1 = __webpack_require__(/*! ../email/email.service */ "./src/email/email.service.ts");
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
-let BookingsService = class BookingsService {
+const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
+const date_fns_1 = __webpack_require__(/*! date-fns */ "date-fns");
+let BookingsService = BookingsService_1 = class BookingsService {
     constructor(appointmentModel, bookingModel, emailService, configService) {
         this.appointmentModel = appointmentModel;
         this.bookingModel = bookingModel;
         this.emailService = emailService;
         this.configService = configService;
+        this.logger = new common_1.Logger(BookingsService_1.name);
     }
     async create(createBookingDto) {
         try {
@@ -954,6 +962,11 @@ let BookingsService = class BookingsService {
     }
     async sendBookingConfirmationEmail(email, name, booking) {
         try {
+            const populatedBooking = await this.bookingModel
+                .findById(booking._id)
+                .populate('serviceId', 'name')
+                .exec();
+            const serviceName = populatedBooking?.serviceId?.name || 'Service';
             await this.emailService.sendBookingConfirmationEmail({
                 email,
                 name,
@@ -964,6 +977,7 @@ let BookingsService = class BookingsService {
                     depositAmount: booking.depositAmount,
                     status: booking.status,
                     paymentStatus: booking.paymentStatus,
+                    serviceName: serviceName,
                 },
             });
         }
@@ -972,7 +986,9 @@ let BookingsService = class BookingsService {
         }
     }
     async findOne(id, userId) {
-        const booking = await this.appointmentModel.findById(id);
+        const booking = await this.bookingModel.findById(id)
+            .populate('userId')
+            .populate('serviceId');
         if (!booking) {
             throw new common_1.NotFoundException('Booking not found');
         }
@@ -981,17 +997,51 @@ let BookingsService = class BookingsService {
         }
         return booking;
     }
-    async cancel(id, userId) {
+    async cancel(id, userId, reason) {
         const booking = await this.findOne(id, userId);
-        if (booking.status === 'CANCELLED') {
+        if (booking.status === booking_schema_1.BookingStatus.CANCELED) {
             throw new Error('Booking is already cancelled');
         }
-        booking.status = 'CANCELLED';
-        return booking.save();
+        booking.status = booking_schema_1.BookingStatus.CANCELED;
+        booking.cancelReason = reason;
+        const updatedBooking = await booking.save();
+        await this.emailService.sendBookingCancellationEmail(updatedBooking);
+        return updatedBooking;
+    }
+    async sendReminderEmails() {
+        try {
+            const tomorrow = (0, date_fns_1.addDays)(new Date(), 1);
+            const bookings = await this.bookingModel
+                .find({
+                dateTime: {
+                    $gte: tomorrow,
+                    $lt: (0, date_fns_1.addDays)(tomorrow, 1)
+                },
+                status: booking_schema_1.BookingStatus.CONFIRMED,
+                reminderSent: false
+            })
+                .populate('userId')
+                .populate('serviceId');
+            this.logger.log(`Found ${bookings.length} bookings for tomorrow's reminders`);
+            for (const booking of bookings) {
+                await this.emailService.sendBookingReminderEmail(booking);
+                booking.reminderSent = true;
+                await booking.save();
+            }
+        }
+        catch (error) {
+            this.logger.error('Failed to send reminder emails:', error);
+        }
     }
 };
 exports.BookingsService = BookingsService;
-exports.BookingsService = BookingsService = __decorate([
+__decorate([
+    (0, schedule_1.Cron)('0 12 * * *'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], BookingsService.prototype, "sendReminderEmails", null);
+exports.BookingsService = BookingsService = BookingsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(appointment_schema_1.Appointment.name)),
     __param(1, (0, mongoose_1.InjectModel)(booking_schema_1.Booking.name)),
@@ -1590,31 +1640,82 @@ let EmailService = EmailService_1 = class EmailService {
             const formattedTime = (0, date_fns_1.format)(bookingDetails.dateTime, 'h:mm a');
             const html = template({
                 name,
-                bookingId: bookingDetails.id,
+                service: bookingDetails.serviceName,
                 date: formattedDate,
                 time: formattedTime,
-                totalAmount: bookingDetails.totalAmount.toFixed(2),
+                price: bookingDetails.totalAmount.toFixed(2),
                 depositAmount: bookingDetails.depositAmount.toFixed(2),
-                remainingAmount: (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2),
-                status: bookingDetails.status,
+                remainingBalance: (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2),
                 paymentStatus: bookingDetails.paymentStatus,
-                websiteName: this.configService.get('WEBSITE_NAME', 'Nail Studio'),
                 businessAddress: this.configService.get('BUSINESS_ADDRESS'),
-                businessPhone: this.configService.get('BUSINESS_PHONE'),
-                googleMapsUrl: this.configService.get('GOOGLE_MAPS_URL'),
+                phoneNumber: this.configService.get('BUSINESS_PHONE'),
                 managementUrl: `${this.configService.get('FRONTEND_URL')}/appointments/${bookingDetails.id}`,
-                cancelUrl: `${this.configService.get('FRONTEND_URL')}/appointments/${bookingDetails.id}/cancel`,
             });
             await this.transporter.sendMail({
-                from: `"${this.configService.get('WEBSITE_NAME', 'Nail Studio')}" <${this.configService.get('GMAIL_USER')}>`,
+                from: `"${this.configService.get('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
                 to: email,
-                subject: 'Your Booking Confirmation 💅',
+                subject: 'Your Booking is Confirmed! 💅',
                 html,
             });
             this.logger.log(`Booking confirmation email sent to ${email}`);
         }
         catch (error) {
             this.logger.error(`Failed to send booking confirmation email to ${email}:`, error);
+            throw error;
+        }
+    }
+    async sendBookingReminderEmail(booking) {
+        try {
+            const template = await this.loadTemplate('booking-reminder');
+            const formattedDate = (0, date_fns_1.format)(booking.dateTime, 'EEEE, MMMM do, yyyy');
+            const formattedTime = (0, date_fns_1.format)(booking.dateTime, 'h:mm a');
+            const html = template({
+                name: booking.userId.name,
+                service: booking.serviceId.name,
+                date: formattedDate,
+                time: formattedTime,
+                businessAddress: this.configService.get('BUSINESS_ADDRESS'),
+                phoneNumber: this.configService.get('BUSINESS_PHONE'),
+                googleMapsUrl: this.configService.get('GOOGLE_MAPS_URL'),
+                managementUrl: `${this.configService.get('FRONTEND_URL')}/appointments/${booking._id}`,
+            });
+            await this.transporter.sendMail({
+                from: `"${this.configService.get('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
+                to: booking.userId.email,
+                subject: 'Reminder: Your Appointment Tomorrow! 🗓️',
+                html,
+            });
+            this.logger.log(`Reminder email sent to ${booking.userId.email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send reminder email:`, error);
+            throw error;
+        }
+    }
+    async sendBookingCancellationEmail(booking) {
+        try {
+            const template = await this.loadTemplate('booking-cancellation');
+            const formattedDate = (0, date_fns_1.format)(booking.dateTime, 'EEEE, MMMM do, yyyy');
+            const formattedTime = (0, date_fns_1.format)(booking.dateTime, 'h:mm a');
+            const html = template({
+                name: booking.userId.name,
+                service: booking.serviceId.name,
+                date: formattedDate,
+                time: formattedTime,
+                cancelReason: booking.cancelReason || 'No reason provided',
+                bookingUrl: `${this.configService.get('FRONTEND_URL')}/booking`,
+                businessPhone: this.configService.get('BUSINESS_PHONE'),
+            });
+            await this.transporter.sendMail({
+                from: `"${this.configService.get('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
+                to: booking.userId.email,
+                subject: 'Your Booking Has Been Cancelled',
+                html,
+            });
+            this.logger.log(`Cancellation email sent to ${booking.userId.email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send cancellation email:`, error);
             throw error;
         }
     }
@@ -2037,6 +2138,16 @@ module.exports = require("@nestjs/mongoose");
 /***/ ((module) => {
 
 module.exports = require("@nestjs/passport");
+
+/***/ }),
+
+/***/ "@nestjs/schedule":
+/*!***********************************!*\
+  !*** external "@nestjs/schedule" ***!
+  \***********************************/
+/***/ ((module) => {
+
+module.exports = require("@nestjs/schedule");
 
 /***/ }),
 

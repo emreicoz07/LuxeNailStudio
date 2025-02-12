@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Appointment, AppointmentDocument } from './schemas/appointment.schema';
@@ -6,9 +6,13 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { Booking, BookingDocument, BookingStatus } from './schemas/booking.schema';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
+import { addDays } from 'date-fns';
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     @InjectModel(Appointment.name) private appointmentModel: Model<AppointmentDocument>,
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
@@ -61,6 +65,14 @@ export class BookingsService {
     booking: BookingDocument
   ): Promise<void> {
     try {
+      // Populate the service details directly from the booking
+      const populatedBooking = await this.bookingModel
+        .findById(booking._id)
+        .populate('serviceId', 'name')
+        .exec();
+
+      const serviceName = populatedBooking?.serviceId?.name || 'Service';
+
       await this.emailService.sendBookingConfirmationEmail({
         email,
         name,
@@ -71,6 +83,7 @@ export class BookingsService {
           depositAmount: booking.depositAmount,
           status: booking.status,
           paymentStatus: booking.paymentStatus,
+          serviceName: serviceName,
         },
       });
     } catch (error) {
@@ -79,23 +92,64 @@ export class BookingsService {
     }
   }
 
-  async findOne(id: string, userId: string): Promise<AppointmentDocument> {
-    const booking = await this.appointmentModel.findById(id);
+  async findOne(id: string, userId: string): Promise<BookingDocument> {
+    const booking = await this.bookingModel.findById(id)
+      .populate('userId')
+      .populate('serviceId');
+      
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+    
     if (booking.userId.toString() !== userId) {
       throw new UnauthorizedException();
     }
+    
     return booking;
   }
 
-  async cancel(id: string, userId: string): Promise<AppointmentDocument> {
+  async cancel(id: string, userId: string, reason?: string): Promise<BookingDocument> {
     const booking = await this.findOne(id, userId);
-    if (booking.status === 'CANCELLED') {
+    if (booking.status === BookingStatus.CANCELED) {
       throw new Error('Booking is already cancelled');
     }
-    booking.status = 'CANCELLED';
-    return booking.save();
+    
+    booking.status = BookingStatus.CANCELED;
+    booking.cancelReason = reason;
+    const updatedBooking = await booking.save();
+    
+    // Send cancellation email
+    await this.emailService.sendBookingCancellationEmail(updatedBooking);
+    
+    return updatedBooking;
+  }
+
+  // Cron job to send reminder emails
+  @Cron('0 12 * * *') // Run at 12:00 PM every day
+  async sendReminderEmails() {
+    try {
+      const tomorrow = addDays(new Date(), 1);
+      const bookings = await this.bookingModel
+        .find({
+          dateTime: {
+            $gte: tomorrow,
+            $lt: addDays(tomorrow, 1)
+          },
+          status: BookingStatus.CONFIRMED,
+          reminderSent: false
+        })
+        .populate('userId')
+        .populate('serviceId');
+
+      this.logger.log(`Found ${bookings.length} bookings for tomorrow's reminders`);
+
+      for (const booking of bookings) {
+        await this.emailService.sendBookingReminderEmail(booking);
+        booking.reminderSent = true;
+        await booking.save();
+      }
+    } catch (error) {
+      this.logger.error('Failed to send reminder emails:', error);
+    }
   }
 } 
