@@ -60,6 +60,8 @@ exports.AppModule = AppModule = __decorate([
             stripe_module_1.StripeModule,
             email_module_1.EmailModule,
         ],
+        controllers: [],
+        providers: [],
     })
 ], AppModule);
 
@@ -606,6 +608,18 @@ exports.JwtAuthGuard = JwtAuthGuard = __decorate([
 
 /***/ }),
 
+/***/ "./src/auth/interfaces/auth.interface.ts":
+/*!***********************************************!*\
+  !*** ./src/auth/interfaces/auth.interface.ts ***!
+  \***********************************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+
 /***/ "./src/auth/schemas/user.schema.ts":
 /*!*****************************************!*\
   !*** ./src/auth/schemas/user.schema.ts ***!
@@ -622,23 +636,32 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UserSchema = exports.User = void 0;
+exports.UserSchema = exports.User = exports.UserRole = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+var UserRole;
+(function (UserRole) {
+    UserRole["CLIENT"] = "client";
+    UserRole["ADMIN"] = "admin";
+    UserRole["STAFF"] = "staff";
+})(UserRole || (exports.UserRole = UserRole = {}));
 let User = class User {
+    get name() {
+        return `${this.firstName} ${this.lastName}`;
+    }
 };
 exports.User = User;
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, minlength: 2, maxlength: 50 }),
+    (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
-], User.prototype, "name", void 0);
+], User.prototype, "firstName", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({
-        required: true,
-        unique: true,
-        index: true
-    }),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], User.prototype, "lastName", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, unique: true }),
     __metadata("design:type", String)
 ], User.prototype, "email", void 0);
 __decorate([
@@ -646,32 +669,25 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "password", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({
-        required: false,
-        match: /^\+?[1-9]\d{1,14}$/,
-    }),
+    (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], User.prototype, "phone", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)
-], User.prototype, "subscribe", void 0);
+], User.prototype, "emailVerified", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, default: false }),
-    __metadata("design:type", Boolean)
-], User.prototype, "agreeToTerms", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ default: 'user' }),
+    (0, mongoose_1.Prop)({ enum: UserRole, default: UserRole.CLIENT }),
     __metadata("design:type", String)
 ], User.prototype, "role", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)
-], User.prototype, "emailVerified", void 0);
+], User.prototype, "subscribe", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
-    __metadata("design:type", String)
-], User.prototype, "verificationToken", void 0);
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Boolean)
+], User.prototype, "agreeToTerms", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
@@ -680,18 +696,37 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
 ], User.prototype, "resetPasswordExpires", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
+], User.prototype, "lastLogout", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], User.prototype, "isActive", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Object, virtual: true }),
+    __metadata("design:type", String),
+    __metadata("design:paramtypes", [])
+], User.prototype, "name", null);
 exports.User = User = __decorate([
-    (0, mongoose_1.Schema)({
-        timestamps: true,
-    })
+    (0, mongoose_1.Schema)({ timestamps: true })
 ], User);
 exports.UserSchema = mongoose_1.SchemaFactory.createForClass(User);
+exports.UserSchema.index({ email: 1 }, { unique: true });
+exports.UserSchema.index({ role: 1 });
+exports.UserSchema.index({ isActive: 1 });
 exports.UserSchema.methods.toJSON = function () {
-    const obj = this.toObject();
-    delete obj.password;
-    delete obj.verificationToken;
-    delete obj.resetPasswordToken;
-    delete obj.resetPasswordExpires;
+    const obj = this.toObject({
+        virtuals: true,
+        transform: (doc, ret) => {
+            delete ret.password;
+            delete ret.verificationToken;
+            delete ret.resetPasswordToken;
+            delete ret.resetPasswordExpires;
+            return ret;
+        }
+    });
     return obj;
 };
 
@@ -766,7 +801,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a, _b, _c;
+var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BookingsController = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -774,33 +809,20 @@ const bookings_service_1 = __webpack_require__(/*! ./bookings.service */ "./src/
 const create_booking_dto_1 = __webpack_require__(/*! ./dto/create-booking.dto */ "./src/bookings/dto/create-booking.dto.ts");
 const stripe_service_1 = __webpack_require__(/*! ../stripe/stripe.service */ "./src/stripe/stripe.service.ts");
 const jwt_auth_guard_1 = __webpack_require__(/*! ../auth/guards/jwt-auth.guard */ "./src/auth/guards/jwt-auth.guard.ts");
+const auth_interface_1 = __webpack_require__(/*! ../auth/interfaces/auth.interface */ "./src/auth/interfaces/auth.interface.ts");
 let BookingsController = class BookingsController {
     constructor(bookingsService, stripeService) {
         this.bookingsService = bookingsService;
         this.stripeService = stripeService;
     }
-    async createBooking(req, createBookingDto) {
-        if (!req.user || !req.user.userId) {
-            throw new Error('User not authenticated');
-        }
-        const paymentIntent = await this.stripeService.createPaymentIntent({
-            amount: createBookingDto.depositAmount || createBookingDto.amount,
-            currency: 'usd',
-        });
-        return this.bookingsService.create({
-            ...createBookingDto,
-            userId: req.user.userId,
-            userEmail: req.user.email,
-            userName: req.user.name,
-            paymentId: paymentIntent.id,
-            paymentStatus: 'UNPAID'
-        });
+    async create(createBookingDto, req) {
+        return this.bookingsService.create(createBookingDto, req.user);
     }
     async getBooking(req, id) {
-        return this.bookingsService.findOne(id, req.user.userId);
+        return this.bookingsService.findOne(id, req.user._id.toString());
     }
     async cancelBooking(req, id) {
-        const booking = await this.bookingsService.cancel(id, req.user.userId);
+        const booking = await this.bookingsService.cancel(id, req.user._id.toString());
         if (booking.paymentId && booking.paymentStatus !== 'UNPAID') {
             await this.stripeService.createRefund(booking.paymentId);
         }
@@ -810,18 +832,18 @@ let BookingsController = class BookingsController {
 exports.BookingsController = BookingsController;
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Request)()),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, typeof (_c = typeof create_booking_dto_1.CreateBookingDto !== "undefined" && create_booking_dto_1.CreateBookingDto) === "function" ? _c : Object]),
+    __metadata("design:paramtypes", [typeof (_c = typeof create_booking_dto_1.CreateBookingDto !== "undefined" && create_booking_dto_1.CreateBookingDto) === "function" ? _c : Object, typeof (_d = typeof auth_interface_1.RequestWithUser !== "undefined" && auth_interface_1.RequestWithUser) === "function" ? _d : Object]),
     __metadata("design:returntype", Promise)
-], BookingsController.prototype, "createBooking", null);
+], BookingsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [typeof (_e = typeof auth_interface_1.RequestWithUser !== "undefined" && auth_interface_1.RequestWithUser) === "function" ? _e : Object, String]),
     __metadata("design:returntype", Promise)
 ], BookingsController.prototype, "getBooking", null);
 __decorate([
@@ -829,11 +851,11 @@ __decorate([
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [typeof (_f = typeof auth_interface_1.RequestWithUser !== "undefined" && auth_interface_1.RequestWithUser) === "function" ? _f : Object, String]),
     __metadata("design:returntype", Promise)
 ], BookingsController.prototype, "cancelBooking", null);
 exports.BookingsController = BookingsController = __decorate([
-    (0, common_1.Controller)('bookings'),
+    (0, common_1.Controller)('api/bookings'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [typeof (_a = typeof bookings_service_1.BookingsService !== "undefined" && bookings_service_1.BookingsService) === "function" ? _a : Object, typeof (_b = typeof stripe_service_1.StripeService !== "undefined" && stripe_service_1.StripeService) === "function" ? _b : Object])
 ], BookingsController);
@@ -879,11 +901,11 @@ exports.BookingsModule = BookingsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             mongoose_1.MongooseModule.forFeature([
+                { name: booking_schema_1.Booking.name, schema: booking_schema_1.BookingSchema },
                 { name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema },
                 { name: category_schema_1.Category.name, schema: category_schema_1.CategorySchema },
                 { name: addon_schema_1.AddOn.name, schema: addon_schema_1.AddOnSchema },
-                { name: booking_schema_1.Booking.name, schema: booking_schema_1.BookingSchema },
-                { name: appointment_schema_1.Appointment.name, schema: appointment_schema_1.AppointmentSchema }
+                { name: appointment_schema_1.Appointment.name, schema: appointment_schema_1.AppointmentSchema },
             ]),
             stripe_module_1.StripeModule,
             auth_module_1.AuthModule,
@@ -920,7 +942,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var BookingsService_1;
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e, _f;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BookingsService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -932,66 +954,91 @@ const email_service_1 = __webpack_require__(/*! ../email/email.service */ "./src
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const date_fns_1 = __webpack_require__(/*! date-fns */ "date-fns");
+const service_schema_1 = __webpack_require__(/*! ./schemas/service.schema */ "./src/bookings/schemas/service.schema.ts");
+const addon_schema_1 = __webpack_require__(/*! ./schemas/addon.schema */ "./src/bookings/schemas/addon.schema.ts");
 let BookingsService = BookingsService_1 = class BookingsService {
-    constructor(appointmentModel, bookingModel, emailService, configService) {
+    constructor(appointmentModel, bookingModel, serviceModel, addOnModel, emailService, configService) {
         this.appointmentModel = appointmentModel;
         this.bookingModel = bookingModel;
+        this.serviceModel = serviceModel;
+        this.addOnModel = addOnModel;
         this.emailService = emailService;
         this.configService = configService;
         this.logger = new common_1.Logger(BookingsService_1.name);
     }
-    async create(createBookingDto) {
-        try {
-            if (!mongoose_2.Types.ObjectId.isValid(createBookingDto.userId) ||
-                !mongoose_2.Types.ObjectId.isValid(createBookingDto.serviceId)) {
-                throw new Error('Invalid ID format');
-            }
-            const bookingData = {
-                ...createBookingDto,
-                userId: new mongoose_2.Types.ObjectId(createBookingDto.userId),
-                serviceId: new mongoose_2.Types.ObjectId(createBookingDto.serviceId),
-                dateTime: new Date(createBookingDto.appointmentDate),
-                status: booking_schema_1.BookingStatus.PENDING,
-                paymentStatus: createBookingDto.paymentStatus || 'UNPAID',
-                totalAmount: createBookingDto.amount,
-                depositAmount: createBookingDto.depositAmount || 0,
-            };
-            const newBooking = new this.bookingModel(bookingData);
-            const savedBooking = await newBooking.save();
-            await this.sendBookingConfirmationEmail(createBookingDto.userEmail, createBookingDto.userName, savedBooking);
-            return savedBooking;
+    async create(createBookingDto, user) {
+        const service = await this.serviceModel.findById(createBookingDto.serviceId);
+        if (!service) {
+            throw new common_1.NotFoundException('Service not found');
         }
-        catch (error) {
-            if (error.message === 'Invalid ID format') {
-                throw new Error('Invalid booking data: malformed ID');
+        let addOns = [];
+        let totalDuration = service.duration;
+        let totalPrice = service.price;
+        if (createBookingDto.addOnIds && createBookingDto.addOnIds.length > 0) {
+            addOns = await this.addOnModel.find({
+                _id: { $in: createBookingDto.addOnIds },
+                isActive: true,
+            });
+            if (addOns.length !== createBookingDto.addOnIds.length) {
+                throw new common_1.BadRequestException('One or more add-ons not found or inactive');
             }
-            throw new Error(`Failed to create booking: ${error.message}`);
-        }
-    }
-    async sendBookingConfirmationEmail(email, name, booking) {
-        try {
-            const populatedBooking = await this.bookingModel
-                .findById(booking._id)
-                .populate('serviceId', 'name')
-                .exec();
-            const serviceName = populatedBooking?.serviceId?.name || 'Service';
-            await this.emailService.sendBookingConfirmationEmail({
-                email,
-                name,
-                bookingDetails: {
-                    id: booking._id?.toString() || booking.id,
-                    dateTime: booking.dateTime,
-                    totalAmount: booking.totalAmount,
-                    depositAmount: booking.depositAmount,
-                    status: booking.status,
-                    paymentStatus: booking.paymentStatus,
-                    serviceName: serviceName,
-                },
+            addOns.forEach(addOn => {
+                totalDuration += addOn.duration;
+                totalPrice += addOn.price;
             });
         }
-        catch (error) {
-            console.error('Failed to send booking confirmation email:', error);
+        if (createBookingDto.amount !== totalPrice) {
+            throw new common_1.BadRequestException('Invalid total amount');
         }
+        const booking = new this.bookingModel({
+            userId: user._id,
+            serviceId: service._id,
+            addOnIds: addOns.map(addOn => addOn._id),
+            dateTime: createBookingDto.appointmentDate,
+            duration: totalDuration,
+            totalAmount: totalPrice,
+            depositAmount: createBookingDto.depositAmount,
+            status: booking_schema_1.BookingStatus.PENDING,
+            notes: createBookingDto.notes,
+            paymentStatus: createBookingDto.paymentStatus || booking_schema_1.PaymentStatus.UNPAID,
+            paymentId: createBookingDto.paymentId
+        });
+        const savedBooking = await booking.save();
+        const populatedBooking = await this.bookingModel
+            .findById(savedBooking._id)
+            .populate('serviceId')
+            .populate('userId')
+            .populate('addOnIds')
+            .exec();
+        if (!populatedBooking) {
+            this.logger.error('Failed to populate booking details after save');
+            throw new Error('Failed to create booking');
+        }
+        const userId = populatedBooking.userId;
+        const serviceId = populatedBooking.serviceId;
+        const emailData = {
+            email: userId.email,
+            firstName: userId.firstName,
+            lastName: userId.lastName,
+            name: `${userId.firstName} ${userId.lastName}`,
+            bookingDetails: {
+                id: populatedBooking._id.toString(),
+                dateTime: populatedBooking.dateTime,
+                totalAmount: populatedBooking.totalAmount,
+                depositAmount: populatedBooking.depositAmount || 0,
+                status: populatedBooking.status,
+                paymentStatus: populatedBooking.paymentStatus,
+                serviceName: serviceId.name,
+                addOnServices: populatedBooking.addOnIds.map(addon => ({
+                    name: addon.name,
+                    price: addon.price
+                }))
+            }
+        };
+        await this.emailService.sendBookingConfirmationEmail(emailData);
+        return savedBooking;
+    }
+    async validateAppointmentSlot(date, duration) {
     }
     async findOne(id, userId) {
         const booking = await this.bookingModel.findById(id)
@@ -1041,6 +1088,11 @@ let BookingsService = BookingsService_1 = class BookingsService {
             this.logger.error('Failed to send reminder emails:', error);
         }
     }
+    async updatePaymentStatus(bookingId, status) {
+        await this.bookingModel.findByIdAndUpdate(bookingId, {
+            paymentStatus: status,
+        });
+    }
 };
 exports.BookingsService = BookingsService;
 __decorate([
@@ -1053,7 +1105,9 @@ exports.BookingsService = BookingsService = BookingsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(appointment_schema_1.Appointment.name)),
     __param(1, (0, mongoose_1.InjectModel)(booking_schema_1.Booking.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof email_service_1.EmailService !== "undefined" && email_service_1.EmailService) === "function" ? _c : Object, typeof (_d = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _d : Object])
+    __param(2, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
+    __param(3, (0, mongoose_1.InjectModel)(addon_schema_1.AddOn.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _d : Object, typeof (_e = typeof email_service_1.EmailService !== "undefined" && email_service_1.EmailService) === "function" ? _e : Object, typeof (_f = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _f : Object])
 ], BookingsService);
 
 
@@ -1121,28 +1175,47 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateBookingDto = void 0;
+exports.CreateBookingDto = exports.PaymentStatus = void 0;
 const class_validator_1 = __webpack_require__(/*! class-validator */ "class-validator");
 const class_transformer_1 = __webpack_require__(/*! class-transformer */ "class-transformer");
+var PaymentStatus;
+(function (PaymentStatus) {
+    PaymentStatus["PAID"] = "PAID";
+    PaymentStatus["UNPAID"] = "UNPAID";
+    PaymentStatus["REFUNDED"] = "REFUNDED";
+    PaymentStatus["FAILED"] = "FAILED";
+})(PaymentStatus || (exports.PaymentStatus = PaymentStatus = {}));
 class CreateBookingDto {
+    constructor() {
+        this.paymentStatus = PaymentStatus.UNPAID;
+    }
 }
 exports.CreateBookingDto = CreateBookingDto;
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_transformer_1.Transform)(({ value }) => value.toString()),
+    (0, class_validator_1.IsMongoId)(),
     __metadata("design:type", String)
 ], CreateBookingDto.prototype, "serviceId", void 0);
 __decorate([
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsMongoId)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateBookingDto.prototype, "addOnIds", void 0);
+__decorate([
+    (0, class_validator_1.IsDate)(),
+    (0, class_transformer_1.Type)(() => Date),
+    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
 ], CreateBookingDto.prototype, "appointmentDate", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateBookingDto.prototype, "amount", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateBookingDto.prototype, "depositAmount", void 0);
@@ -1157,10 +1230,30 @@ __decorate([
     __metadata("design:type", String)
 ], CreateBookingDto.prototype, "paymentId", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(['PAID', 'UNPAID', 'REFUNDED']),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(PaymentStatus),
     __metadata("design:type", String)
 ], CreateBookingDto.prototype, "paymentStatus", void 0);
+
+
+/***/ }),
+
+/***/ "./src/bookings/enums/service-category.enum.ts":
+/*!*****************************************************!*\
+  !*** ./src/bookings/enums/service-category.enum.ts ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ServiceCategory = void 0;
+var ServiceCategory;
+(function (ServiceCategory) {
+    ServiceCategory["MANICURE"] = "MANICURE";
+    ServiceCategory["PEDICURE"] = "PEDICURE";
+    ServiceCategory["NAIL_ART"] = "NAIL_ART";
+    ServiceCategory["SPECIAL"] = "SPECIAL";
+})(ServiceCategory || (exports.ServiceCategory = ServiceCategory = {}));
 
 
 /***/ }),
@@ -1184,7 +1277,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AddOnSchema = exports.AddOn = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-let AddOn = class AddOn {
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+let AddOn = class AddOn extends mongoose_2.Document {
 };
 exports.AddOn = AddOn;
 __decorate([
@@ -1193,16 +1287,16 @@ __decorate([
 ], AddOn.prototype, "name", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
-], AddOn.prototype, "description", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ required: true, min: 0 }),
     __metadata("design:type", Number)
 ], AddOn.prototype, "price", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, min: 0 }),
+    (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", Number)
 ], AddOn.prototype, "duration", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], AddOn.prototype, "description", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: true }),
     __metadata("design:type", Boolean)
@@ -1299,14 +1393,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a, _b, _c, _d;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BookingSchema = exports.Booking = exports.BookingStatus = void 0;
+exports.BookingSchema = exports.Booking = exports.PaymentStatus = exports.BookingStatus = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const user_schema_1 = __webpack_require__(/*! ../../auth/schemas/user.schema */ "./src/auth/schemas/user.schema.ts");
 const service_schema_1 = __webpack_require__(/*! ./service.schema */ "./src/bookings/schemas/service.schema.ts");
-const create_booking_dto_1 = __webpack_require__(/*! ../dto/create-booking.dto */ "./src/bookings/dto/create-booking.dto.ts");
 var BookingStatus;
 (function (BookingStatus) {
     BookingStatus["PENDING"] = "PENDING";
@@ -1314,7 +1407,15 @@ var BookingStatus;
     BookingStatus["CANCELED"] = "CANCELED";
     BookingStatus["COMPLETED"] = "COMPLETED";
 })(BookingStatus || (exports.BookingStatus = BookingStatus = {}));
-let Booking = class Booking extends mongoose_2.Document {
+var PaymentStatus;
+(function (PaymentStatus) {
+    PaymentStatus["PENDING"] = "PENDING";
+    PaymentStatus["PAID"] = "PAID";
+    PaymentStatus["FAILED"] = "FAILED";
+    PaymentStatus["REFUNDED"] = "REFUNDED";
+    PaymentStatus["UNPAID"] = "UNPAID";
+})(PaymentStatus || (exports.PaymentStatus = PaymentStatus = {}));
+let Booking = class Booking {
 };
 exports.Booking = Booking;
 __decorate([
@@ -1334,21 +1435,29 @@ __decorate([
     __metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
 ], Booking.prototype, "dateTime", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, enum: BookingStatus, default: BookingStatus.PENDING }),
-    __metadata("design:type", String)
-], Booking.prototype, "status", void 0);
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Booking.prototype, "duration", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: String, enum: ['PAID', 'UNPAID', 'REFUNDED'], default: 'UNPAID' }),
-    __metadata("design:type", typeof (_d = typeof create_booking_dto_1.PaymentStatus !== "undefined" && create_booking_dto_1.PaymentStatus) === "function" ? _d : Object)
-], Booking.prototype, "paymentStatus", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ min: 0 }),
+    (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", Number)
 ], Booking.prototype, "totalAmount", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ min: 0 }),
+    (0, mongoose_1.Prop)({ required: true, default: 0 }),
     __metadata("design:type", Number)
 ], Booking.prototype, "depositAmount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ enum: BookingStatus, default: BookingStatus.PENDING }),
+    __metadata("design:type", String)
+], Booking.prototype, "status", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({
+        type: String,
+        enum: PaymentStatus,
+        default: PaymentStatus.PENDING
+    }),
+    __metadata("design:type", String)
+], Booking.prototype, "paymentStatus", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
@@ -1362,7 +1471,7 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Booking.prototype, "reminderSent", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ type: String }),
     __metadata("design:type", String)
 ], Booking.prototype, "paymentId", void 0);
 exports.Booking = Booking = __decorate([
@@ -1395,33 +1504,30 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CategorySchema = exports.Category = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-let Category = class Category {
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+let Category = class Category extends mongoose_2.Document {
 };
 exports.Category = Category;
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, unique: true }),
+    (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
 ], Category.prototype, "name", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
 ], Category.prototype, "description", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true }),
+    (0, mongoose_1.Prop)({ required: true, unique: true }),
     __metadata("design:type", String)
 ], Category.prototype, "slug", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Category.prototype, "order", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], Category.prototype, "imageUrl", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ default: true }),
-    __metadata("design:type", Boolean)
-], Category.prototype, "isActive", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ default: 0 }),
-    __metadata("design:type", Number)
-], Category.prototype, "order", void 0);
 exports.Category = Category = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Category);
@@ -1449,19 +1555,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServiceSchema = exports.Service = exports.ServiceCategory = void 0;
+exports.ServiceSchema = exports.Service = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const category_schema_1 = __webpack_require__(/*! ./category.schema */ "./src/bookings/schemas/category.schema.ts");
-var ServiceCategory;
-(function (ServiceCategory) {
-    ServiceCategory["MANICURE"] = "MANICURE";
-    ServiceCategory["PEDICURE"] = "PEDICURE";
-    ServiceCategory["NAIL_ART"] = "NAIL_ART";
-    ServiceCategory["SPECIAL"] = "SPECIAL";
-})(ServiceCategory || (exports.ServiceCategory = ServiceCategory = {}));
+const service_category_enum_1 = __webpack_require__(/*! ../enums/service-category.enum */ "./src/bookings/enums/service-category.enum.ts");
 let Service = class Service {
 };
 exports.Service = Service;
@@ -1486,8 +1586,8 @@ __decorate([
     __metadata("design:type", typeof (_a = typeof category_schema_1.Category !== "undefined" && category_schema_1.Category) === "function" ? _a : Object)
 ], Service.prototype, "category", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, enum: ServiceCategory, default: ServiceCategory.MANICURE }),
-    __metadata("design:type", String)
+    (0, mongoose_1.Prop)({ type: String, enum: service_category_enum_1.ServiceCategory, required: true }),
+    __metadata("design:type", typeof (_b = typeof service_category_enum_1.ServiceCategory !== "undefined" && service_category_enum_1.ServiceCategory) === "function" ? _b : Object)
 ], Service.prototype, "serviceCategory", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
@@ -1539,6 +1639,7 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const service_schema_1 = __webpack_require__(/*! ../schemas/service.schema */ "./src/bookings/schemas/service.schema.ts");
 const category_schema_1 = __webpack_require__(/*! ../schemas/category.schema */ "./src/bookings/schemas/category.schema.ts");
+const service_category_enum_1 = __webpack_require__(/*! ../enums/service-category.enum */ "./src/bookings/enums/service-category.enum.ts");
 let ServicesSeedService = class ServicesSeedService {
     constructor(serviceModel, categoryModel) {
         this.serviceModel = serviceModel;
@@ -1604,7 +1705,7 @@ let ServicesSeedService = class ServicesSeedService {
                     duration: 30,
                     deposit: 7.50,
                     category: categories.manicure.id,
-                    serviceCategory: service_schema_1.ServiceCategory.MANICURE,
+                    serviceCategory: service_category_enum_1.ServiceCategory.MANICURE,
                 },
                 {
                     name: 'Manicure + Normal Polish',
@@ -1613,7 +1714,7 @@ let ServicesSeedService = class ServicesSeedService {
                     duration: 60,
                     deposit: 9.50,
                     category: categories.manicure.id,
-                    serviceCategory: service_schema_1.ServiceCategory.MANICURE,
+                    serviceCategory: service_category_enum_1.ServiceCategory.MANICURE,
                 },
                 {
                     name: 'Manicure + Gel Polish',
@@ -1622,7 +1723,7 @@ let ServicesSeedService = class ServicesSeedService {
                     duration: 75,
                     deposit: 14.00,
                     category: categories.manicure.id,
-                    serviceCategory: service_schema_1.ServiceCategory.MANICURE,
+                    serviceCategory: service_category_enum_1.ServiceCategory.MANICURE,
                 },
                 {
                     name: 'Basic Pedicure',
@@ -1631,7 +1732,7 @@ let ServicesSeedService = class ServicesSeedService {
                     duration: 45,
                     deposit: 15.00,
                     category: categories.pedicure.id,
-                    serviceCategory: service_schema_1.ServiceCategory.PEDICURE,
+                    serviceCategory: service_category_enum_1.ServiceCategory.PEDICURE,
                 },
                 {
                     name: 'Luxury Spa Pedicure',
@@ -1640,7 +1741,7 @@ let ServicesSeedService = class ServicesSeedService {
                     duration: 60,
                     deposit: 20.00,
                     category: categories.pedicure.id,
-                    serviceCategory: service_schema_1.ServiceCategory.PEDICURE,
+                    serviceCategory: service_category_enum_1.ServiceCategory.PEDICURE,
                 },
                 {
                     name: 'Basic Nail Art',
@@ -1649,7 +1750,7 @@ let ServicesSeedService = class ServicesSeedService {
                     duration: 30,
                     deposit: 5.00,
                     category: categories.nailArt.id,
-                    serviceCategory: service_schema_1.ServiceCategory.NAIL_ART,
+                    serviceCategory: service_category_enum_1.ServiceCategory.NAIL_ART,
                 },
                 {
                     name: 'Bridal Package',
@@ -1658,7 +1759,7 @@ let ServicesSeedService = class ServicesSeedService {
                     duration: 120,
                     deposit: 40.00,
                     category: categories.special.id,
-                    serviceCategory: service_schema_1.ServiceCategory.SPECIAL,
+                    serviceCategory: service_category_enum_1.ServiceCategory.SPECIAL,
                 },
             ];
             await this.serviceModel.create(servicesToCreate);
@@ -2635,13 +2736,11 @@ const app_module_1 = __webpack_require__(/*! ./app.module */ "./src/app.module.t
 const database_config_1 = __webpack_require__(/*! ./config/database.config */ "./src/config/database.config.ts");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
-    app.setGlobalPrefix('api');
     app.enableCors({
         origin: process.env.FRONTEND_URL || 'http://localhost:5173',
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
     });
+    app.setGlobalPrefix('api');
     app.useGlobalPipes(new common_1.ValidationPipe({
         transform: true,
         whitelist: true,

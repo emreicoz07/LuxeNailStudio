@@ -181,6 +181,17 @@
             <span class="detail-value">{{service}}</span>
           </div>
           
+          {{#if bookingDetails.addOnServices.length}}
+          <div class="detail-item">
+            <span class="detail-label">Add-ons:</span>
+            <ul class="add-ons-list">
+              {{#each bookingDetails.addOnServices}}
+              <li>{{this.name}} - €{{this.price}}</li>
+              {{/each}}
+            </ul>
+          </div>
+          {{/if}}
+          
           <div class="detail-item">
             <span class="detail-label">Date:</span>
             <span class="detail-value">{{date}}</span>
@@ -191,12 +202,15 @@
             <span class="detail-value">{{time}}</span>
           </div>
           
-          {{#if price}}
           <div class="detail-item">
-            <span class="detail-label">Price:</span>
-            <span class="detail-value">${{price}}</span>
+            <span class="detail-label">Total Duration:</span>
+            <span class="detail-value">{{duration}} minutes</span>
           </div>
-          {{/if}}
+          
+          <div class="detail-item">
+            <span class="detail-label">Total Price:</span>
+            <span class="detail-value">€{{price}}</span>
+          </div>
         </div>
 
         <div style="text-align: center;">

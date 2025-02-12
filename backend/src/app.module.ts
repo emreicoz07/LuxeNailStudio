@@ -40,5 +40,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     StripeModule,
     EmailModule,
   ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {} 

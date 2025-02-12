@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Service, ServiceCategory } from '../schemas/service.schema';
-import { Category, CategoryDocument } from '../schemas/category.schema';
+import { Service } from '../schemas/service.schema';
+import { Category } from '../schemas/category.schema';
+import { ServiceCategory } from '../enums/service-category.enum';
+import { CategoryDocument } from '../schemas/category.schema';
 
 @Injectable()
 export class ServicesSeedService {
   constructor(
     @InjectModel(Service.name) private serviceModel: Model<Service>,
-    @InjectModel(Category.name) private categoryModel: Model<Category>,
+    @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>
   ) {}
 
   async seed() {

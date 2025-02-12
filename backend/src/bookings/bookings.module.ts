@@ -18,11 +18,11 @@ import { SeedServicesCommand } from './commands/seed.command';
 @Module({
   imports: [
     MongooseModule.forFeature([
+      { name: Booking.name, schema: BookingSchema },
       { name: Service.name, schema: ServiceSchema },
       { name: Category.name, schema: CategorySchema },
       { name: AddOn.name, schema: AddOnSchema },
-      { name: Booking.name, schema: BookingSchema },
-      { name: Appointment.name, schema: AppointmentSchema }
+      { name: Appointment.name, schema: AppointmentSchema },
     ]),
     StripeModule,
     AuthModule,

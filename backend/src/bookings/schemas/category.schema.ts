@@ -1,27 +1,24 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type CategoryDocument = Category & Document;
 
 @Schema({ timestamps: true })
-export class Category {
-  @Prop({ required: true, unique: true })
+export class Category extends Document {
+  @Prop({ required: true })
   name: string;
 
-  @Prop()
-  description?: string;
+  @Prop({ required: true })
+  description: string;
+
+  @Prop({ required: true, unique: true })
+  slug: string;
 
   @Prop({ required: true })
-  slug: string;
+  order: number;
 
   @Prop()
   imageUrl?: string;
-
-  @Prop({ default: true })
-  isActive: boolean;
-
-  @Prop({ default: 0 })
-  order: number;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

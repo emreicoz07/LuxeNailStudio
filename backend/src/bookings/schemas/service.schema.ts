@@ -1,13 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import { Category } from './category.schema';
-
-export enum ServiceCategory {
-  MANICURE = 'MANICURE',
-  PEDICURE = 'PEDICURE',
-  NAIL_ART = 'NAIL_ART',
-  SPECIAL = 'SPECIAL'
-}
+import { ServiceCategory } from '../enums/service-category.enum';
 
 export type ServiceDocument = Service & Document;
 
@@ -28,7 +22,7 @@ export class Service {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Category', required: true })
   category: Category;
 
-  @Prop({ required: true, enum: ServiceCategory, default: ServiceCategory.MANICURE })
+  @Prop({ type: String, enum: ServiceCategory, required: true })
   serviceCategory: ServiceCategory;
 
   @Prop()

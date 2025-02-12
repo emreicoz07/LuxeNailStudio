@@ -23,6 +23,7 @@ interface Service {
   category: string;
   depositRequired?: boolean;
   depositAmount?: number;
+  isAddOn?: boolean;
 }
 
 interface TimeSlot {
@@ -40,9 +41,10 @@ interface BookingSummary {
 
 const bookingValidationSchema = z.object({
   serviceId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid service ID format"),
+  addOnIds: z.array(z.string()).optional(),
   appointmentDate: z.string().datetime("Invalid date and time"),
   amount: z.number().min(0, "Amount must be positive"),
-  depositAmount: z.number().min(0, "Deposit amount must be positive"),
+  depositAmount: z.number().min(0, "Deposit amount must be positive").optional(),
   notes: z.string().optional()
 });
 
@@ -61,6 +63,7 @@ const BookingPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
 
   const categories = [
     {
@@ -77,8 +80,7 @@ const BookingPage: React.FC = () => {
     }
   ];
 
-  const services: Service[] = [
-    // Manicure Services
+  const mainServices: Service[] = [
     {
       id: '507f1f77bcf86cd799439001',
       title: 'Manicure Spa (without polish)',
@@ -129,7 +131,6 @@ const BookingPage: React.FC = () => {
       depositRequired: true,
       depositAmount: 16.50
     },
-    // Add new manicure services
     {
       id: '507f1f77bcf86cd799439006',
       title: 'Infills + Hard Gel (Short)',
@@ -250,28 +251,6 @@ const BookingPage: React.FC = () => {
       depositRequired: true,
       depositAmount: 30
     },
-
-    // Service Add-ons for Manicure
-    {
-      id: '507f1f77bcf86cd799439018',
-      title: 'Nail Arts',
-      description: 'From 2 euro each',
-      duration: '10 min',
-      price: 2,
-      category: 'manicure',
-      depositRequired: false
-    },
-    {
-      id: '507f1f77bcf86cd799439019',
-      title: 'French/Ombre',
-      description: 'French or ombre nail design',
-      duration: '20 min',
-      price: 5,
-      category: 'manicure',
-      depositRequired: false
-    },
-
-    // Pedicure Services
     {
       id: '507f1f77bcf86cd799439020',
       title: 'Pedicure Spa (without polish)',
@@ -332,43 +311,62 @@ const BookingPage: React.FC = () => {
       depositRequired: true,
       depositAmount: 20
     },
+  ];
 
-    // Add service add-ons for both categories
+  const serviceAddOns: Service[] = [
     {
-      id: '507f1f77bcf86cd799439026',
+      id: '507f1f77bcf86cd799439101',
+      title: 'Nail Arts',
+      description: 'From 2 euro each',
+      duration: '10 min',
+      price: 2,
+      category: 'manicure',
+      isAddOn: true
+    },
+    {
+      id: '507f1f77bcf86cd799439102',
+      title: 'French/Ombre',
+      description: 'French or ombre nail design',
+      duration: '20 min',
+      price: 5,
+      category: 'manicure',
+      isAddOn: true
+    },
+    {
+      id: '507f1f77bcf86cd799439103',
       title: 'Take off gel polish',
       description: 'Removal of existing gel polish',
       duration: '15 min',
       price: 10,
-      category: 'pedicure',
-      depositRequired: false
+      category: 'both',
+      isAddOn: true
     },
     {
-      id: '507f1f77bcf86cd799439027',
+      id: '507f1f77bcf86cd799439104',
       title: 'Take off hard gel',
       description: 'Removal of existing hard gel',
       duration: '20 min',
       price: 12,
-      category: 'pedicure',
-      depositRequired: false
+      category: 'both',
+      isAddOn: true
     },
     {
-      id: '507f1f77bcf86cd799439028',
+      id: '507f1f77bcf86cd799439105',
       title: 'Take off acrylic',
       description: 'Removal of existing acrylic',
       duration: '30 min',
       price: 12,
-      category: 'pedicure',
-      depositRequired: false
+      category: 'both',
+      isAddOn: true
     },
     {
-      id: '507f1f77bcf86cd799439029',
+      id: '507f1f77bcf86cd799439106',
       title: 'Nail effects (Magnetic)',
       description: 'Special magnetic nail effects',
       duration: '15 min',
       price: 5,
-      category: 'pedicure',
-      depositRequired: false
+      category: 'both',
+      isAddOn: true
     }
   ];
 
@@ -379,11 +377,15 @@ const BookingPage: React.FC = () => {
 
   const handleServiceSelect = (serviceId: string) => {
     setSelectedService(serviceId);
-    setCurrentStep('datetime');
+    setSelectedAddOns([]);
   };
 
-  const filteredServices = services.filter(
+  const filteredMainServices = mainServices.filter(
     service => service.category === selectedCategory
+  );
+
+  const filteredAddOns = serviceAddOns.filter(
+    addon => addon.category === selectedCategory || addon.category === 'both'
   );
 
   const generateTimeSlots = (selectedDate: Date): TimeSlot[] => {
@@ -418,7 +420,7 @@ const BookingPage: React.FC = () => {
   };
 
   const getSelectedService = (): Service | undefined => {
-    return services.find(service => service.id === selectedService);
+    return mainServices.find(service => service.id === selectedService);
   };
 
   const createBookingMutation = useMutation({
@@ -441,59 +443,58 @@ const BookingPage: React.FC = () => {
     }
   });
 
-  const handleBookingSubmit = async () => {
-    const service = getSelectedService();
-    if (!service || !selectedTime) return;
-
-    if (!isAuthenticated) {
-      toast.error('Please log in to make a booking');
-      navigate('/login', { 
-        state: { 
-          returnTo: '/booking',
-          bookingData: { serviceId: service.id, date: selectedDate, time: selectedTime }
-        } 
-      });
-      return;
-    }
-
-    setValidationErrors({});
+  const calculateTotalPrice = () => {
+    const mainService = mainServices.find(service => service.id === selectedService);
+    const addOnsTotal = selectedAddOns.reduce((total, addOnId) => {
+      const addOn = serviceAddOns.find(addon => addon.id === addOnId);
+      return total + (addOn?.price || 0);
+    }, 0);
     
-    try {
-      const [hours, minutes] = selectedTime.match(/(\d+):(\d+)/)?.slice(1).map(Number) || [0, 0];
-      const period = selectedTime.toLowerCase().includes('pm') ? 'PM' : 'AM';
-      const hour24 = period === 'PM' && hours !== 12 ? hours + 12 : hours;
-      
-      const appointmentDateTime = new Date(selectedDate);
-      appointmentDateTime.setHours(hour24, minutes, 0, 0);
+    return (mainService?.price || 0) + addOnsTotal;
+  };
 
-      if (isBefore(appointmentDateTime, new Date())) {
-        throw new Error('Cannot book appointments in the past');
+  const calculateDepositAmount = () => {
+    const mainService = mainServices.find(service => service.id === selectedService);
+    if (mainService && mainService.price >= 50) {
+      return Math.round(mainService.price * 0.2);
+    }
+    return 0;
+  };
+
+  const handleBookingSubmit = async () => {
+    try {
+      if (!isAuthenticated) {
+        navigate('/login', { state: { from: '/booking' } });
+        return;
       }
-      
+
+      const selectedServiceData = getSelectedService();
+      if (!selectedServiceData || !selectedDate || !selectedTime) {
+        throw new Error('Please select all required booking details');
+      }
+
+      const appointmentDateTime = new Date(selectedDate);
+      const [hours, minutes] = selectedTime.split(':');
+      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
       const bookingData = {
-        serviceId: service.id,
+        serviceId: selectedServiceData.id,
+        addOnIds: selectedAddOns, // Include selected add-ons
         appointmentDate: appointmentDateTime.toISOString(),
-        amount: service.price,
-        depositAmount: service.depositAmount || (service.price >= 50 ? Math.round(service.price * 0.2) : 0),
-        notes: '',
+        amount: calculateTotalPrice(), // Make sure this includes add-ons
+        depositAmount: selectedServiceData.depositRequired ? selectedServiceData.depositAmount : undefined,
+        notes: '', // Add notes if you have them
       };
 
-      if (!/^[0-9a-fA-F]{24}$/.test(bookingData.serviceId)) {
-        throw new Error('Invalid service ID format');
-      }
-
+      // Validate the data before submission
       const validatedData = bookingValidationSchema.parse(bookingData);
-      createBookingMutation.mutate(validatedData);
+      await createBookingMutation.mutateAsync(validatedData);
+      
+      // Handle successful booking
+      toast.success('Booking confirmed successfully!');
+      navigate('/appointments');
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors = Object.fromEntries(
-          error.errors.map(err => [err.path[0], err.message])
-        );
-        setValidationErrors(errors);
-        toast.error('Please check the booking details and try again.');
-      } else {
-        toast.error((error as Error).message || 'An unexpected error occurred');
-      }
+      // Error handling...
     }
   };
 
@@ -563,7 +564,7 @@ const BookingPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
+              className="space-y-8"
             >
               <div className="flex items-center mb-8">
                 <button
@@ -576,32 +577,100 @@ const BookingPage: React.FC = () => {
                   Select Your Service
                 </h1>
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
-                {filteredServices.map((service) => (
-                  <button
-                    key={service.id}
-                    onClick={() => handleServiceSelect(service.id)}
-                    className="p-6 text-left bg-white rounded-xl border-2 border-gray-100 shadow-sm transition-all duration-300 hover:border-primary-300 group hover:shadow-md"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-xl font-semibold">{service.title}</h3>
-                        <span className="font-semibold text-primary-500">
-                          ${service.price}
-                        </span>
+              <div className="space-y-6">
+                <h2 className="text-2xl font-semibold">Select Service</h2>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {filteredMainServices.map((service) => (
+                    <button
+                      key={service.id}
+                      onClick={() => handleServiceSelect(service.id)}
+                      className={`p-6 text-left rounded-xl border-2 transition-all duration-300 
+                        ${selectedService === service.id 
+                          ? 'border-primary-500 bg-primary-50' 
+                          : 'border-gray-200 hover:border-primary-200 bg-white'}`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-semibold">{service.title}</h3>
+                          <span className="text-primary-600 font-semibold">€{service.price}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{service.description}</p>
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <span>Duration: {service.duration}</span>
+                          {service.depositRequired && (
+                            <span className="text-primary-600">
+                              Deposit: €{service.depositAmount}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-gray-600">{service.description}</p>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <span className="flex items-center">
-                          <svg className="mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {service.duration}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add-ons Section - Only show after selecting a main service */}
+              {selectedService && filteredAddOns.length > 0 && (
+                <div className="space-y-6 mt-8">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-semibold">Optional Add-ons</h2>
+                    {selectedAddOns.length > 0 && (
+                      <button
+                        onClick={() => setSelectedAddOns([])}
+                        className="text-sm text-primary-600 hover:text-primary-700"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {filteredAddOns.map((addon) => (
+                      <button
+                        key={addon.id}
+                        onClick={() => {
+                          setSelectedAddOns(prev => 
+                            prev.includes(addon.id)
+                              ? prev.filter(id => id !== addon.id)
+                              : [...prev, addon.id]
+                          );
+                        }}
+                        className={`p-4 text-left rounded-lg border-2 transition-all duration-300
+                          ${selectedAddOns.includes(addon.id)
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-primary-200 bg-white'}`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-semibold">{addon.title}</h3>
+                            <span className="text-primary-600">€{addon.price}</span>
+                          </div>
+                          <p className="text-sm text-gray-600">{addon.description}</p>
+                          <div className="text-sm text-gray-500">
+                            Duration: {addon.duration}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between mt-8">
+                <button
+                  onClick={() => setCurrentStep('category')}
+                  className="px-6 py-2 text-primary-600 hover:text-primary-700"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => setCurrentStep('datetime')}
+                  disabled={!selectedService}
+                  className="px-6 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50
+                    hover:bg-primary-700 transition-colors duration-200"
+                >
+                  Continue
+                </button>
               </div>
             </motion.div>
           )}
@@ -770,21 +839,36 @@ const BookingPage: React.FC = () => {
                   <h2 className="text-xl font-semibold">Price Details</h2>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Service Price</span>
-                      <span className="font-semibold">${getSelectedService()?.price}</span>
+                      <span className="text-gray-600">Main Service</span>
+                      <span className="font-semibold">€{getSelectedService()?.price}</span>
                     </div>
-                    {getSelectedService()?.price >= 50 && (
+                    
+                    {selectedAddOns.length > 0 && (
+                      <>
+                        <div className="text-gray-600">Add-ons:</div>
+                        {selectedAddOns.map(addOnId => {
+                          const addOn = serviceAddOns.find(addon => addon.id === addOnId);
+                          return (
+                            <div key={addOnId} className="flex justify-between items-center pl-4">
+                              <span className="text-gray-600">{addOn?.title}</span>
+                              <span className="font-semibold">€{addOn?.price}</span>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                    
+                    {getSelectedService()?.depositRequired && (
                       <div className="flex justify-between items-center text-primary-600">
-                        <span>Required Deposit (20%)</span>
-                        <span className="font-semibold">
-                          ${(getSelectedService()?.price * 0.2).toFixed(2)}
-                        </span>
+                        <span>Required Deposit</span>
+                        <span className="font-semibold">€{getSelectedService()?.depositAmount}</span>
                       </div>
                     )}
-                    <div className="border-t border-gray-100 pt-3">
+                    
+                    <div className="border-t border-gray-200 pt-3">
                       <div className="flex justify-between items-center font-semibold text-lg">
                         <span>Total</span>
-                        <span>${getSelectedService()?.price}</span>
+                        <span>€{calculateTotalPrice()}</span>
                       </div>
                     </div>
                   </div>

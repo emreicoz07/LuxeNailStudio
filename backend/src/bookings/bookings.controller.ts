@@ -12,18 +12,9 @@ import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { StripeService } from '../stripe/stripe.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequestWithUser } from '../auth/interfaces/auth.interface';
 
-// Add this interface to define the Request type
-interface RequestWithUser extends Request {
-  user: {
-    userId: string;
-    email: string;
-    role: string;
-    name: string;
-  };
-}
-
-@Controller('bookings')
+@Controller('api/bookings')
 @UseGuards(JwtAuthGuard)
 export class BookingsController {
   constructor(
@@ -32,37 +23,18 @@ export class BookingsController {
   ) {}
 
   @Post()
-  async createBooking(@Request() req: RequestWithUser, @Body() createBookingDto: CreateBookingDto) {
-    // Ensure user exists in request
-    if (!req.user || !req.user.userId) {
-      throw new Error('User not authenticated');
-    }
-
-    // Create payment intent first
-    const paymentIntent = await this.stripeService.createPaymentIntent({
-      amount: createBookingDto.depositAmount || createBookingDto.amount,
-      currency: 'usd',
-    });
-
-    // Create booking with payment intent ID and user details
-    return this.bookingsService.create({
-      ...createBookingDto,
-      userId: req.user.userId,
-      userEmail: req.user.email,
-      userName: req.user.name,
-      paymentId: paymentIntent.id,
-      paymentStatus: 'UNPAID'
-    });
+  async create(@Body() createBookingDto: CreateBookingDto, @Request() req: RequestWithUser) {
+    return this.bookingsService.create(createBookingDto, req.user);
   }
 
   @Get(':id')
   async getBooking(@Request() req: RequestWithUser, @Param('id') id: string) {
-    return this.bookingsService.findOne(id, req.user.userId);
+    return this.bookingsService.findOne(id, req.user._id.toString());
   }
 
   @Put(':id/cancel')
   async cancelBooking(@Request() req: RequestWithUser, @Param('id') id: string) {
-    const booking = await this.bookingsService.cancel(id, req.user.userId);
+    const booking = await this.bookingsService.cancel(id, req.user._id.toString());
     
     // If payment was made, process refund
     if (booking.paymentId && booking.paymentStatus !== 'UNPAID') {

@@ -3,13 +3,20 @@ import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 import { User } from '../../auth/schemas/user.schema';
 import { Service } from './service.schema';
 import { AddOn } from './addon.schema';
-import { PaymentStatus } from '../dto/create-booking.dto';
 
 export enum BookingStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',
   CANCELED = 'CANCELED',
-  COMPLETED = 'COMPLETED',
+  COMPLETED = 'COMPLETED'
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+  UNPAID = 'UNPAID'
 }
 
 export interface BookingDocument extends Booking, Document {
@@ -18,7 +25,7 @@ export interface BookingDocument extends Booking, Document {
 }
 
 @Schema({ timestamps: true })
-export class Booking extends Document {
+export class Booking {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
   userId: User;
 
@@ -31,17 +38,24 @@ export class Booking extends Document {
   @Prop({ required: true })
   dateTime: Date;
 
-  @Prop({ required: true, enum: BookingStatus, default: BookingStatus.PENDING })
-  status: BookingStatus;
+  @Prop({ required: true })
+  duration: number;
 
-  @Prop({ type: String, enum: ['PAID', 'UNPAID', 'REFUNDED'], default: 'UNPAID' })
-  paymentStatus: PaymentStatus;
-
-  @Prop({ min: 0 })
+  @Prop({ required: true })
   totalAmount: number;
 
-  @Prop({ min: 0 })
+  @Prop({ required: true, default: 0 })
   depositAmount: number;
+
+  @Prop({ enum: BookingStatus, default: BookingStatus.PENDING })
+  status: BookingStatus;
+
+  @Prop({ 
+    type: String,
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING 
+  })
+  paymentStatus: PaymentStatus;
 
   @Prop()
   notes?: string;
@@ -52,7 +66,7 @@ export class Booking extends Document {
   @Prop({ default: false })
   reminderSent: boolean;
 
-  @Prop()
+  @Prop({ type: String })
   paymentId?: string;
 }
 

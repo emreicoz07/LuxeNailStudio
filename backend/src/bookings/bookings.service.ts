@@ -1,13 +1,17 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Appointment } from './schemas/appointment.schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { Booking, BookingDocument, BookingStatus } from './schemas/booking.schema';
+import { Booking, BookingDocument, BookingStatus, PaymentStatus } from './schemas/booking.schema';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { addDays } from 'date-fns';
+import { Service } from './schemas/service.schema';
+import { AddOn } from './schemas/addon.schema';
+import { UserFromRequest } from '../auth/interfaces/auth.interface';
+import { BookingConfirmationEmailData } from '../email/interfaces/email.interface';
 
 @Injectable()
 export class BookingsService {
@@ -16,80 +20,110 @@ export class BookingsService {
   constructor(
     @InjectModel(Appointment.name) private appointmentModel: Model<Appointment>,
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
+    @InjectModel(Service.name) private serviceModel: Model<Service>,
+    @InjectModel(AddOn.name) private addOnModel: Model<AddOn>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
   ) {}
 
-  async create(createBookingDto: CreateBookingDto & { userId: string; userEmail: string; userName: string }) {
-    try {
-      // Validate ObjectId format before conversion
-      if (!Types.ObjectId.isValid(createBookingDto.userId) || 
-          !Types.ObjectId.isValid(createBookingDto.serviceId)) {
-        throw new Error('Invalid ID format');
-      }
-
-      // Convert string IDs to ObjectIds
-      const bookingData = {
-        ...createBookingDto,
-        userId: new Types.ObjectId(createBookingDto.userId),
-        serviceId: new Types.ObjectId(createBookingDto.serviceId),
-        dateTime: new Date(createBookingDto.appointmentDate),
-        status: BookingStatus.PENDING,
-        paymentStatus: createBookingDto.paymentStatus || 'UNPAID',
-        totalAmount: createBookingDto.amount,
-        depositAmount: createBookingDto.depositAmount || 0,
-      };
-
-      const newBooking = new this.bookingModel(bookingData);
-      const savedBooking = await newBooking.save();
-
-      // Send confirmation email
-      await this.sendBookingConfirmationEmail(
-        createBookingDto.userEmail,
-        createBookingDto.userName,
-        savedBooking
-      );
-
-      return savedBooking;
-    } catch (error) {
-      if (error.message === 'Invalid ID format') {
-        throw new Error('Invalid booking data: malformed ID');
-      }
-      throw new Error(`Failed to create booking: ${error.message}`);
+  async create(createBookingDto: CreateBookingDto, user: UserFromRequest): Promise<Booking> {
+    // Validate main service
+    const service = await this.serviceModel.findById(createBookingDto.serviceId);
+    if (!service) {
+      throw new NotFoundException('Service not found');
     }
+
+    // Validate and get add-ons if any are selected
+    let addOns: AddOn[] = [];
+    let totalDuration = service.duration;
+    let totalPrice = service.price;
+
+    if (createBookingDto.addOnIds && createBookingDto.addOnIds.length > 0) {
+      addOns = await this.addOnModel.find({
+        _id: { $in: createBookingDto.addOnIds },
+        isActive: true,
+      });
+
+      if (addOns.length !== createBookingDto.addOnIds.length) {
+        throw new BadRequestException('One or more add-ons not found or inactive');
+      }
+
+      // Calculate total duration and price including add-ons
+      addOns.forEach(addOn => {
+        totalDuration += addOn.duration;
+        totalPrice += addOn.price;
+      });
+    }
+
+    // Validate total amount matches calculated price
+    if (createBookingDto.amount !== totalPrice) {
+      throw new BadRequestException('Invalid total amount');
+    }
+
+    // Create the booking
+    const booking = new this.bookingModel({
+      userId: user._id,
+      serviceId: service._id,
+      addOnIds: addOns.map(addOn => addOn._id),
+      dateTime: createBookingDto.appointmentDate,
+      duration: totalDuration,
+      totalAmount: totalPrice,
+      depositAmount: createBookingDto.depositAmount,
+      status: BookingStatus.PENDING,
+      notes: createBookingDto.notes,
+      paymentStatus: createBookingDto.paymentStatus || PaymentStatus.UNPAID,
+      paymentId: createBookingDto.paymentId
+    });
+
+    const savedBooking = await booking.save();
+
+    // Populate service details for the email
+    const populatedBooking = await this.bookingModel
+      .findById(savedBooking._id)
+      .populate('serviceId')
+      .populate('userId')
+      .populate('addOnIds')
+      .exec();
+
+    if (!populatedBooking) {
+      this.logger.error('Failed to populate booking details after save');
+      throw new Error('Failed to create booking');
+    }
+
+    // Type assertions to ensure type safety
+    const userId = populatedBooking.userId as any;
+    const serviceId = populatedBooking.serviceId as any;
+
+    // Format the email data according to the interface
+    const emailData: BookingConfirmationEmailData = {
+      email: userId.email,
+      firstName: userId.firstName,
+      lastName: userId.lastName,
+      name: `${userId.firstName} ${userId.lastName}`,
+      bookingDetails: {
+        id: populatedBooking._id.toString(),
+        dateTime: populatedBooking.dateTime,
+        totalAmount: populatedBooking.totalAmount,
+        depositAmount: populatedBooking.depositAmount || 0,
+        status: populatedBooking.status,
+        paymentStatus: populatedBooking.paymentStatus,
+        serviceName: serviceId.name,
+        addOnServices: (populatedBooking.addOnIds as any[]).map(addon => ({
+          name: addon.name,
+          price: addon.price
+        }))
+      }
+    };
+
+    // Send confirmation email
+    await this.emailService.sendBookingConfirmationEmail(emailData);
+
+    return savedBooking;
   }
 
-  private async sendBookingConfirmationEmail(
-    email: string,
-    name: string,
-    booking: BookingDocument
-  ): Promise<void> {
-    try {
-      // Populate the service details directly from the booking
-      const populatedBooking = await this.bookingModel
-        .findById(booking._id)
-        .populate('serviceId', 'name')
-        .exec();
-
-      const serviceName = populatedBooking?.serviceId?.name || 'Service';
-
-      await this.emailService.sendBookingConfirmationEmail({
-        email,
-        name,
-        bookingDetails: {
-          id: booking._id?.toString() || booking.id,
-          dateTime: booking.dateTime,
-          totalAmount: booking.totalAmount,
-          depositAmount: booking.depositAmount,
-          status: booking.status,
-          paymentStatus: booking.paymentStatus,
-          serviceName: serviceName,
-        },
-      });
-    } catch (error) {
-      console.error('Failed to send booking confirmation email:', error);
-      // Don't throw the error as we don't want to roll back the booking creation
-    }
+  private async validateAppointmentSlot(date: Date, duration: number): Promise<void> {
+    // Add your appointment slot validation logic here
+    // Check for overlapping bookings, business hours, etc.
   }
 
   async findOne(id: string, userId: string): Promise<BookingDocument> {
@@ -151,5 +185,11 @@ export class BookingsService {
     } catch (error) {
       this.logger.error('Failed to send reminder emails:', error);
     }
+  }
+
+  async updatePaymentStatus(bookingId: string, status: PaymentStatus): Promise<void> {
+    await this.bookingModel.findByIdAndUpdate(bookingId, {
+      paymentStatus: status,
+    });
   }
 } 
