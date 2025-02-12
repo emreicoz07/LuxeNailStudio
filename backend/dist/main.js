@@ -131,6 +131,7 @@ const jwt_1 = __webpack_require__(/*! @nestjs/jwt */ "@nestjs/jwt");
 const auth_controller_1 = __webpack_require__(/*! ./auth.controller */ "./src/auth/auth.controller.ts");
 const auth_service_1 = __webpack_require__(/*! ./auth.service */ "./src/auth/auth.service.ts");
 const user_schema_1 = __webpack_require__(/*! ./schemas/user.schema */ "./src/auth/schemas/user.schema.ts");
+const email_module_1 = __webpack_require__(/*! ../email/email.module */ "./src/email/email.module.ts");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -142,6 +143,7 @@ exports.AuthModule = AuthModule = __decorate([
                 secret: process.env.JWT_SECRET || 'your-secret-key',
                 signOptions: { expiresIn: '24h' },
             }),
+            email_module_1.EmailModule,
         ],
         controllers: [auth_controller_1.AuthController],
         providers: [auth_service_1.AuthService],
@@ -172,7 +174,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var AuthService_1;
-var _a, _b;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -182,10 +184,12 @@ const bcrypt = __webpack_require__(/*! bcrypt */ "bcrypt");
 const jwt_1 = __webpack_require__(/*! @nestjs/jwt */ "@nestjs/jwt");
 const user_schema_1 = __webpack_require__(/*! ./schemas/user.schema */ "./src/auth/schemas/user.schema.ts");
 const common_2 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const email_service_1 = __webpack_require__(/*! ../email/email.service */ "./src/email/email.service.ts");
 let AuthService = AuthService_1 = class AuthService {
-    constructor(userModel, jwtService) {
+    constructor(userModel, jwtService, emailService) {
         this.userModel = userModel;
         this.jwtService = jwtService;
+        this.emailService = emailService;
         this.logger = new common_2.Logger(AuthService_1.name);
     }
     async register(registerDto) {
@@ -216,6 +220,10 @@ let AuthService = AuthService_1 = class AuthService {
                 userId: user._id,
                 email: user.email,
                 role: user.role
+            });
+            await this.emailService.sendWelcomeEmail(email, name)
+                .catch(error => {
+                this.logger.error('Failed to send welcome email:', error);
             });
             this.logger.log(`User registered successfully: ${email}`);
             return {
@@ -264,7 +272,7 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(user_schema_1.User.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _b : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _b : Object, typeof (_c = typeof email_service_1.EmailService !== "undefined" && email_service_1.EmailService) === "function" ? _c : Object])
 ], AuthService);
 
 
@@ -499,6 +507,126 @@ exports.connectToDatabase = connectToDatabase;
 
 /***/ }),
 
+/***/ "./src/email/email.module.ts":
+/*!***********************************!*\
+  !*** ./src/email/email.module.ts ***!
+  \***********************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmailModule = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+const email_service_1 = __webpack_require__(/*! ./email.service */ "./src/email/email.service.ts");
+let EmailModule = class EmailModule {
+};
+exports.EmailModule = EmailModule;
+exports.EmailModule = EmailModule = __decorate([
+    (0, common_1.Module)({
+        imports: [config_1.ConfigModule],
+        providers: [email_service_1.EmailService],
+        exports: [email_service_1.EmailService],
+    })
+], EmailModule);
+
+
+/***/ }),
+
+/***/ "./src/email/email.service.ts":
+/*!************************************!*\
+  !*** ./src/email/email.service.ts ***!
+  \************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var EmailService_1;
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmailService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+const nodemailer = __webpack_require__(/*! nodemailer */ "nodemailer");
+const handlebars = __webpack_require__(/*! handlebars */ "handlebars");
+const fs = __webpack_require__(/*! fs */ "fs");
+const path = __webpack_require__(/*! path */ "path");
+let EmailService = EmailService_1 = class EmailService {
+    constructor(configService) {
+        this.configService = configService;
+        this.logger = new common_1.Logger(EmailService_1.name);
+        this.transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            auth: {
+                user: this.configService.get('GMAIL_USER'),
+                pass: this.configService.get('GMAIL_APP_PASSWORD'),
+            },
+        });
+        this.transporter.verify((error) => {
+            if (error) {
+                this.logger.error('Error connecting to email server:', error);
+            }
+            else {
+                this.logger.log('Ready to send emails');
+            }
+        });
+    }
+    async loadTemplate(templateName) {
+        const templatePath = path.join(process.cwd(), 'src', 'templates', `${templateName}.hbs`);
+        try {
+            const template = await fs.promises.readFile(templatePath, 'utf-8');
+            return handlebars.compile(template);
+        }
+        catch (error) {
+            this.logger.error(`Failed to load email template '${templateName}':`, error);
+            throw error;
+        }
+    }
+    async sendWelcomeEmail(email, name) {
+        try {
+            const template = await this.loadTemplate('welcome');
+            const html = template({
+                name,
+                websiteName: this.configService.get('WEBSITE_NAME', 'Nail Studio'),
+            });
+            await this.transporter.sendMail({
+                from: `"${this.configService.get('WEBSITE_NAME', 'Nail Studio')}" <${this.configService.get('GMAIL_USER')}>`,
+                to: email,
+                subject: `Welcome to ${this.configService.get('WEBSITE_NAME', 'Nail Studio')}! 🎉`,
+                html,
+            });
+            this.logger.log(`Welcome email sent to ${email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send welcome email to ${email}:`, error);
+        }
+    }
+};
+exports.EmailService = EmailService;
+exports.EmailService = EmailService = EmailService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object])
+], EmailService);
+
+
+/***/ }),
+
 /***/ "@nestjs/common":
 /*!*********************************!*\
   !*** external "@nestjs/common" ***!
@@ -579,6 +707,16 @@ module.exports = require("class-validator");
 
 /***/ }),
 
+/***/ "handlebars":
+/*!*****************************!*\
+  !*** external "handlebars" ***!
+  \*****************************/
+/***/ ((module) => {
+
+module.exports = require("handlebars");
+
+/***/ }),
+
 /***/ "mongoose":
 /*!***************************!*\
   !*** external "mongoose" ***!
@@ -586,6 +724,36 @@ module.exports = require("class-validator");
 /***/ ((module) => {
 
 module.exports = require("mongoose");
+
+/***/ }),
+
+/***/ "nodemailer":
+/*!*****************************!*\
+  !*** external "nodemailer" ***!
+  \*****************************/
+/***/ ((module) => {
+
+module.exports = require("nodemailer");
+
+/***/ }),
+
+/***/ "fs":
+/*!*********************!*\
+  !*** external "fs" ***!
+  \*********************/
+/***/ ((module) => {
+
+module.exports = require("fs");
+
+/***/ }),
+
+/***/ "path":
+/*!***********************!*\
+  !*** external "path" ***!
+  \***********************/
+/***/ ((module) => {
+
+module.exports = require("path");
 
 /***/ })
 

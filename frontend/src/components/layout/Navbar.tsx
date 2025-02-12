@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { HiMenu, HiX } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { toast } from 'react-toastify';
 
 const navigation = [
   { name: 'Home', path: '/' },
@@ -16,11 +17,37 @@ const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
+  };
+
+  const handleBookNowClick = () => {
+    if (!user) {
+      // Store the intended destination
+      sessionStorage.setItem('redirectAfterLogin', '/appointments');
+      
+      // Show a toast notification
+      toast.info('Please log in to book an appointment', {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      
+      // Redirect to login page
+      navigate('/login');
+      return;
+    }
+    
+    // User is authenticated, proceed to appointments
+    navigate('/appointments');
   };
 
   return (
@@ -98,12 +125,12 @@ const Navbar: React.FC = () => {
                 >
                   Login
                 </Link>
-                <Link
-                  to="/appointments"
+                <button
+                  onClick={handleBookNowClick}
                   className="btn btn-primary"
                 >
                   Book Now
-                </Link>
+                </button>
               </div>
             )}
           </div>
@@ -144,20 +171,24 @@ const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
-            <Link
-              to="/login"
-              className="block px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-primary-500 hover:bg-primary-50"
-              onClick={() => setIsOpen(false)}
-            >
-              Login
-            </Link>
-            <Link
-              to="/appointments"
-              className="block px-3 py-2 text-base font-medium text-white bg-primary-500 rounded-md hover:bg-primary-600"
-              onClick={() => setIsOpen(false)}
+            {!user && (
+              <Link
+                to="/login"
+                className="block px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-primary-500 hover:bg-primary-50"
+                onClick={() => setIsOpen(false)}
+              >
+                Login
+              </Link>
+            )}
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                handleBookNowClick();
+              }}
+              className="block w-full px-3 py-2 text-base font-medium text-white bg-primary-500 rounded-md hover:bg-primary-600"
             >
               Book Now
-            </Link>
+            </button>
           </div>
         </motion.div>
       </div>

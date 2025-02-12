@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { User, UserSchema } from './schemas/user.schema';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { User, UserSchema } from './schemas/user.schema';
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '24h' },
     }),
+    EmailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],

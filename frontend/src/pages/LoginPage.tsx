@@ -76,9 +76,12 @@ const LoginPage = () => {
         draggable: true,
       });
 
-      // Redirect to the intended page or home
-      const redirectTo = location.state?.from?.pathname || '/';
-      navigate(redirectTo);
+      // Check for redirect after login
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+      sessionStorage.removeItem('redirectAfterLogin'); // Clean up
+      
+      // Redirect to the stored path or home
+      navigate(redirectPath || '/');
     } catch (err: any) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       

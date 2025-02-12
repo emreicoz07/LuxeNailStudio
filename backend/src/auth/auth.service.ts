@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import { User, UserDocument } from './schemas/user.schema';
 import { Logger } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +15,8 @@ export class AuthService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    private jwtService: JwtService
+    private jwtService: JwtService,
+    private emailService: EmailService
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -52,6 +54,13 @@ export class AuthService {
         email: user.email,
         role: user.role
       });
+
+      // Send welcome email
+      await this.emailService.sendWelcomeEmail(email, name)
+        .catch(error => {
+          // Log error but don't fail registration
+          this.logger.error('Failed to send welcome email:', error);
+        });
 
       this.logger.log(`User registered successfully: ${email}`);
 

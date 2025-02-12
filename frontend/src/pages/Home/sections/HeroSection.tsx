@@ -4,8 +4,11 @@ import { Link } from 'react-router-dom';
 import Section from '../../../components/common/Section';
 import Button from '../../../components/common/Button';
 import Image from '../../../components/common/Image';
+import { useBookingNavigation } from '../../../hooks/useBookingNavigation';
 
 const HeroSection: React.FC = () => {
+  const handleBookNowClick = useBookingNavigation();
+
   return (
     <Section className="bg-gradient-to-r from-primary-50 to-primary-100 pt-20 pb-32">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -24,7 +27,7 @@ const HeroSection: React.FC = () => {
             to making your nails look and feel amazing.
           </p>
           <div className="flex flex-wrap gap-4">
-            <Button size="large" as={Link} to="/appointments">
+            <Button size="large" onClick={handleBookNowClick}>
               Book Now
             </Button>
             <Button size="large" variant="secondary" as={Link} to="/services">

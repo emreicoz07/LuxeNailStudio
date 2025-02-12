@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      padding: 20px 0;
+      background-color: #ffc0cb;
+      color: white;
+      border-radius: 8px;
+    }
+    .content {
+      padding: 20px 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px 0;
+      color: #666;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Welcome to {{websiteName}}! 🎉</h1>
+  </div>
+  
+  <div class="content">
+    <p>Hello {{name}},</p>
+    
+    <p>Thank you for signing up at {{websiteName}}! We're excited to have you on board.</p>
+    
+    <p>With your new account, you can:</p>
+    <ul>
+      <li>Book appointments for nail services</li>
+      <li>View our latest designs and promotions</li>
+      <li>Manage your appointments</li>
+      <li>Receive exclusive offers</li>
+    </ul>
+
+    <p>If you have any questions or need assistance, don't hesitate to reach out to our support team.</p>
+    
+    <p>Best regards,<br>
+    The {{websiteName}} Team</p>
+  </div>
+
+  <div class="footer">
+    <p>This email was sent to you because you signed up at {{websiteName}}.</p>
+  </div>
+</body>
+</html> 
