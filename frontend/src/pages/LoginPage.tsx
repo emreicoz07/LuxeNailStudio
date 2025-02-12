@@ -1,148 +1,180 @@
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { FaApple, FaFacebook, FaEye, FaEyeSlash } from 'react-icons/fa';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import { toast } from 'react-toastify';
+import Button from '../components/common/Button';
+
+interface LoginFormInputs {
+  email: string;
+  password: string;
+}
+
+const schema = yup.object().shape({
+  email: yup
+    .string()
+    .required('Email is required')
+    .email('Please enter a valid email address'),
+  password: yup
+    .string()
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
+});
 
 const LoginPage = () => {
-  const { login, error, clearError } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { register, handleSubmit, formState: { errors }, setError } = useForm<LoginFormInputs>({
+    resolver: yupResolver(schema)
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: LoginFormInputs) => {
     try {
-      await login(formData.email, formData.password);
-      navigate('/'); // Redirect to home page after successful login
-    } catch (err) {
-      // Error is handled by the auth context
-      console.error('Login failed:', err);
+      setIsSubmitting(true);
+      await login(data.email, data.password);
+      
+      toast.success('Welcome back! 👋', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Redirect to the intended page or home
+      const redirectTo = location.state?.from?.pathname || '/';
+      navigate(redirectTo);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Login failed. Please check your credentials.';
+      toast.error(errorMessage);
+      
+      // Set form-level error
+      setError('root', {
+        type: 'manual',
+        message: errorMessage
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Clear any existing errors when component unmounts
-  useEffect(() => {
-    return () => clearError();
-  }, [clearError]);
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-200 via-primary-100 to-primary-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-200 via-primary-100 to-primary-50 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] w-full max-w-md mx-4"
+        className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
       >
-        <h1 className="text-4xl font-secondary font-semibold text-center mb-8 text-text-primary">
-          Welcome Back
-        </h1>
-        
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-500 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit}>
-          <motion.div
-            className="space-y-5"
-          >
-            <motion.div
-              whileFocus={{ scale: 1.01 }}
-              transition={{ duration: 0.2 }}
-            >
-              <input
-                type="email"
-                placeholder="Email"
-                autoFocus
-                className="w-full px-4 py-3 rounded-xl border border-primary-100 focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none transition-all duration-200"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </motion.div>
-            
-            <div className="relative">
-              <motion.div
-                whileFocus={{ scale: 1.01 }}
-                transition={{ duration: 0.2 }}
-              >
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  className="w-full px-4 py-3 rounded-xl border border-primary-100 focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none transition-all duration-200 pr-10"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-              </motion.div>
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-secondary hover:text-primary-500 transition-colors duration-200"
-              >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
-            </div>
-          </motion.div>
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Welcome Back
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Sign in to your account
+          </p>
+        </div>
 
-          <div className="text-right mt-2">
-            <Link 
-              to="/forgot-password" 
-              className="text-primary-500 hover:text-primary-600 text-sm font-medium transition-colors duration-200"
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
+          <div className="rounded-md shadow-sm space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email address
+              </label>
+              <input
+                {...register('email')}
+                type="email"
+                className="input"
+                placeholder="Enter your email"
+                autoComplete="email"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="relative">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  {...register('password')}
+                  type={showPassword ? "text" : "password"}
+                  className="input pr-10"
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-500"
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-medium text-primary-500 hover:text-primary-600"
             >
-              Forgot Password?
+              Forgot your password?
             </Link>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.02, backgroundColor: '#FF147B' }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-            className="w-full px-6 py-3 mt-6 bg-primary-500 text-white rounded-xl font-medium shadow-sm hover:shadow-md transition-all duration-200"
+          <Button
             type="submit"
+            variant="primary"
+            className="w-full"
+            isLoading={isSubmitting}
           >
-            Sign In
-          </motion.button>
-        </form>
+            {isSubmitting ? 'Signing in...' : 'Sign in'}
+          </Button>
 
-        <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-text-secondary">Or continue with</span>
+              <span className="px-2 bg-white text-gray-500">Or continue with</span>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
-              { icon: <FcGoogle className="text-xl" />, name: 'Google' },
-              { icon: <FaFacebook className="text-xl text-blue-600" />, name: 'Facebook' },
-              { icon: <FaApple className="text-xl" />, name: 'Apple' }
+              { icon: <FcGoogle className="w-5 h-5" />, name: 'Google' },
+              { icon: <FaFacebook className="w-5 h-5 text-blue-600" />, name: 'Facebook' },
+              { icon: <FaApple className="w-5 h-5" />, name: 'Apple' }
             ].map((provider) => (
-              <motion.button
+              <button
                 key={provider.name}
-                whileHover={{ scale: 1.05 }}
-                className="flex justify-center items-center py-2 px-4 border border-primary-100 rounded-lg hover:bg-primary-50 transition-colors"
-                aria-label={`Sign in with ${provider.name}`}
+                type="button"
+                className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-500 bg-white hover:bg-gray-50"
               >
                 {provider.icon}
-              </motion.button>
+              </button>
             ))}
           </div>
-        </div>
+        </form>
 
-        <p className="mt-8 text-center text-sm text-text-secondary">
+        <p className="mt-6 text-center text-sm text-gray-600">
           Don't have an account?{' '}
-          <Link 
-            to="/register" 
-            className="text-primary-500 hover:text-primary-600 font-medium"
-          >
+          <Link to="/register" className="font-medium text-primary-500 hover:text-primary-600">
             Sign up
           </Link>
         </p>

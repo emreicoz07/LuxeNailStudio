@@ -1,5 +1,3 @@
-import axios from 'axios';
-import config from '../config/config';
 import axiosInstance from '../config/axios.config';
 
 const API_URL = '/auth';
@@ -14,6 +12,7 @@ interface RegisterData {
   email: string;
   phone?: string | null;
   password: string;
+  confirmPassword: string;
   subscribe: boolean;
   agreeToTerms: boolean;
 }
@@ -29,54 +28,70 @@ interface AuthResponse {
 }
 
 class AuthService {
-  private baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
-  async login(email: string, password: string): Promise<AuthResponse> {
+   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await axios.post(`${this.baseURL}/auth/login`, {
-        email,
-        password
-      });
+      const response = await axiosInstance.post<AuthResponse>(`${API_URL}/login`, credentials);
+      
       if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        // Store token in HttpOnly cookie
+        document.cookie = `auth_token=${response.data.token}; path=/; secure; samesite=strict; max-age=86400`; // 24 hours
+        
+        // Store minimal user info
+        const userData = {
+          id: response.data.user.id,
+          name: response.data.user.name,
+          email: response.data.user.email,
+          role: response.data.user.role
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        return response.data;
       }
-      return response.data;
-    } catch (error) {
-      throw error;
+      throw new Error('No token received from server');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      if (error.response?.status === 404) {
+        throw new Error('Login service is currently unavailable');
+      }
+      if (error.response?.status === 401) {
+        throw new Error('Invalid email or password');
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw new Error('Login failed. Please try again.');
     }
   }
 
-  async register(data: RegisterData) {
+  async register(data: RegisterData): Promise<AuthResponse> {
     try {
-      const response = await axiosInstance.post(`${API_URL}/register`, data);
+      const response = await axiosInstance.post<AuthResponse>(`${API_URL}/register`, data);
       
-      // Check if we have a successful response with token
       if (response.data.token) {
-        // Store token and user data
-        localStorage.setItem('token', response.data.token);
+        // Store token in HttpOnly cookie
+        document.cookie = `auth_token=${response.data.token}; path=/; secure; samesite=strict`;
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        // Return the response data
         return response.data;
-      } else {
-        throw new Error('Registration successful but no token received');
       }
-    } catch (error) {
+      throw new Error('Registration successful but no token received');
+    } catch (error: any) {
       console.error('Registration error:', error.response?.data);
-      // Throw the error with a more specific message
       throw error.response?.data?.message 
-        ? error 
+        ? new Error(error.response.data.message)
         : new Error('Registration failed. Please try again later.');
     }
   }
 
   async forgotPassword(email: string): Promise<void> {
-    await axios.post(`${this.baseURL}/auth/forgot-password`, { email });
+    try {
+      await axiosInstance.post(`${API_URL}/forgot-password`, { email });
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to process forgot password request');
+    }
   }
 
   logout(): void {
-    localStorage.removeItem('token');
+    // Clear HttpOnly cookie
+    document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     localStorage.removeItem('user');
   }
 
@@ -86,12 +101,9 @@ class AuthService {
     return null;
   }
 
-  getToken() {
-    return localStorage.getItem('token');
-  }
-
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    // Check for auth_token cookie
+    return document.cookie.includes('auth_token=');
   }
 }
 

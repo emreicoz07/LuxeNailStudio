@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Nail Polish Bottle -->
+  <path 
+    d="M160 64h192v96H160z" 
+    fill="#FF8BA7"
+  />
+  <path 
+    d="M160 160h192v288c0 17.67-14.33 32-32 32H192c-17.67 0-32-14.33-32-32V160z" 
+    fill="#FF3366"
+  />
+  <!-- Bottle Cap -->
+  <path 
+    d="M192 32h128c17.67 0 32 14.33 32 32v32H160V64c0-17.67 14.33-32 32-32z" 
+    fill="#4A5568"
+  />
+  <!-- Shine/Reflection -->
+  <path 
+    d="M200 180h40v200c0 11.05-8.95 20-20 20s-20-8.95-20-20V180z" 
+    fill="#FFB8C9"
+    opacity="0.5"
+  />
+</svg> 

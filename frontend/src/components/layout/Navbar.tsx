@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { HiMenu, HiX } from 'react-icons/hi';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../contexts/AuthContext';
 
 const navigation = [
   { name: 'Home', path: '/' },
@@ -13,7 +14,14 @@ const navigation = [
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    setShowUserMenu(false);
+  };
 
   return (
     <nav className="fixed w-full bg-white shadow-md z-50">
@@ -43,20 +51,61 @@ const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/login"
-                className="font-medium text-text-secondary hover:text-primary-500 transition-colors"
-              >
-                Login
-              </Link>
-              <Link
-                to="/appointments"
-                className="btn btn-primary"
-              >
-                Book Now
-              </Link>
-            </div>
+            
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-2 text-text-secondary hover:text-primary-500"
+                >
+                  <span>{user.name}</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                <AnimatePresence>
+                  {showUserMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                    >
+                      <div className="py-1">
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Profile
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Sign out
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Link
+                  to="/login"
+                  className="font-medium text-text-secondary hover:text-primary-500 transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/appointments"
+                  className="btn btn-primary"
+                >
+                  Book Now
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Mobile menu button */}
