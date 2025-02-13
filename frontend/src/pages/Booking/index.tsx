@@ -281,8 +281,18 @@ const BookingPage: React.FC = () => {
       const result = await createBookingMutation.mutateAsync(bookingData);
       
       if (result) {
-        toast.success('Booking created successfully!');
-        navigate('/bookings/' + result._id);
+        // Show success message
+        toast.success('Booking created successfully! Redirecting to booking details...', {
+          position: "top-center",
+          autoClose: 3000
+        });
+
+        // Wait for toast to be visible before redirecting
+        setTimeout(() => {
+          navigate(`/bookings/${result._id}`, {
+            state: { bookingConfirmed: true }
+          });
+        }, 2000);
       }
     } catch (error: any) {
       console.error('Booking error:', error);

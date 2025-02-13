@@ -101,6 +101,28 @@ export class BookingsService {
       if (!populatedBooking) {
         throw new NotFoundException('Booking not found after creation');
       }
+
+      // Send confirmation email
+      await this.emailService.sendBookingConfirmation({
+        email: user.email,
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        bookingDetails: {
+          id: populatedBooking._id.toString(),
+          dateTime: populatedBooking.dateTime,
+          totalAmount: populatedBooking.totalAmount,
+          depositAmount: populatedBooking.depositAmount || 0,
+          status: populatedBooking.status,
+          paymentStatus: populatedBooking.paymentStatus,
+          serviceName: service.name,
+          addOnServices: addOns.map(addon => ({
+            name: addon.name,
+            price: addon.price
+          })),
+          notes: populatedBooking.notes
+        }
+      });
       
       return populatedBooking;
     } catch (error) {

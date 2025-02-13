@@ -1157,6 +1157,26 @@ let BookingsService = BookingsService_1 = class BookingsService {
             if (!populatedBooking) {
                 throw new common_1.NotFoundException('Booking not found after creation');
             }
+            await this.emailService.sendBookingConfirmation({
+                email: user.email,
+                name: user.name,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                bookingDetails: {
+                    id: populatedBooking._id.toString(),
+                    dateTime: populatedBooking.dateTime,
+                    totalAmount: populatedBooking.totalAmount,
+                    depositAmount: populatedBooking.depositAmount || 0,
+                    status: populatedBooking.status,
+                    paymentStatus: populatedBooking.paymentStatus,
+                    serviceName: service.name,
+                    addOnServices: addOns.map(addon => ({
+                        name: addon.name,
+                        price: addon.price
+                    })),
+                    notes: populatedBooking.notes
+                }
+            });
             return populatedBooking;
         }
         catch (error) {
@@ -2034,41 +2054,41 @@ let EmailService = EmailService_1 = class EmailService {
     }
     async sendBookingConfirmation(params) {
         const { email, name, bookingDetails } = params;
-        const addOnsHtml = bookingDetails.addOnServices?.length
-            ? `
-        <h3>Selected Add-ons:</h3>
-        <ul>
-          ${bookingDetails.addOnServices.map((addOn) => `
-            <li>
-              <strong>${addOn.name}</strong> - $${addOn.price.toFixed(2)}
-            </li>
-          `).join('')}
-        </ul>
-        <p><strong>Add-ons Total:</strong> $${bookingDetails.addOnServices.reduce((sum, addOn) => sum + addOn.price, 0).toFixed(2)}</p>
-      `
-            : '';
-        const html = `
-      <h2>Booking Confirmation</h2>
-      <p>Dear ${name},</p>
-      <p>Your booking has been confirmed for the following service:</p>
-      
-      <h3>Service Details:</h3>
-      <p>
-        <strong>${bookingDetails.serviceName}</strong>
-      </p>
-      
-      ${addOnsHtml}
-      
-      <p><strong>Total Amount:</strong> $${bookingDetails.totalAmount.toFixed(2)}</p>
-      <p><strong>Date & Time:</strong> ${bookingDetails.dateTime.toLocaleString()}</p>
-      
-      <p>Thank you for choosing our services!</p>
-    `;
-        await this.sendMail({
-            to: email,
-            subject: 'Booking Confirmation',
-            html
-        });
+        try {
+            const template = await this.loadTemplate('booking-confirmation');
+            const formattedDate = (0, date_fns_1.format)(bookingDetails.dateTime, 'EEEE, MMMM do, yyyy');
+            const formattedTime = (0, date_fns_1.format)(bookingDetails.dateTime, 'h:mm a');
+            const html = template({
+                name,
+                websiteName: this.configService.get('WEBSITE_NAME', 'Nail Studio'),
+                bookingId: bookingDetails.id,
+                date: formattedDate,
+                time: formattedTime,
+                service: bookingDetails.serviceName,
+                totalAmount: bookingDetails.totalAmount.toFixed(2),
+                depositAmount: bookingDetails.depositAmount?.toFixed(2),
+                remainingAmount: bookingDetails.depositAmount ?
+                    (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2) : null,
+                status: bookingDetails.status,
+                paymentStatus: bookingDetails.paymentStatus,
+                businessAddress: this.configService.get('BUSINESS_ADDRESS'),
+                businessPhone: this.configService.get('BUSINESS_PHONE'),
+                googleMapsUrl: this.configService.get('GOOGLE_MAPS_URL'),
+                managementUrl: `${this.configService.get('FRONTEND_URL')}/bookings/${bookingDetails.id}`,
+                cancelUrl: `${this.configService.get('FRONTEND_URL')}/bookings/${bookingDetails.id}/cancel`,
+            });
+            await this.transporter.sendMail({
+                from: `"${this.configService.get('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
+                to: email,
+                subject: 'Your Booking is Confirmed! 💅',
+                html,
+            });
+            this.logger.log(`Booking confirmation email sent to ${email}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send booking confirmation email to ${email}:`, error);
+            throw error;
+        }
     }
 };
 exports.EmailService = EmailService;

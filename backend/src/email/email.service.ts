@@ -243,43 +243,42 @@ export class EmailService {
 
   async sendBookingConfirmation(params: BookingConfirmationEmailData): Promise<void> {
     const { email, name, bookingDetails } = params;
-    
-    const addOnsHtml = bookingDetails.addOnServices?.length
-      ? `
-        <h3>Selected Add-ons:</h3>
-        <ul>
-          ${bookingDetails.addOnServices.map((addOn: { name: string; price: number }) => `
-            <li>
-              <strong>${addOn.name}</strong> - $${addOn.price.toFixed(2)}
-            </li>
-          `).join('')}
-        </ul>
-        <p><strong>Add-ons Total:</strong> $${bookingDetails.addOnServices.reduce((sum: number, addOn: { price: number }) => sum + addOn.price, 0).toFixed(2)}</p>
-      `
-      : '';
+    try {
+      const template = await this.loadTemplate('booking-confirmation');
+      const formattedDate = format(bookingDetails.dateTime, 'EEEE, MMMM do, yyyy');
+      const formattedTime = format(bookingDetails.dateTime, 'h:mm a');
 
-    const html = `
-      <h2>Booking Confirmation</h2>
-      <p>Dear ${name},</p>
-      <p>Your booking has been confirmed for the following service:</p>
-      
-      <h3>Service Details:</h3>
-      <p>
-        <strong>${bookingDetails.serviceName}</strong>
-      </p>
-      
-      ${addOnsHtml}
-      
-      <p><strong>Total Amount:</strong> $${bookingDetails.totalAmount.toFixed(2)}</p>
-      <p><strong>Date & Time:</strong> ${bookingDetails.dateTime.toLocaleString()}</p>
-      
-      <p>Thank you for choosing our services!</p>
-    `;
+      const html = template({
+        name,
+        websiteName: this.configService.get<string>('WEBSITE_NAME', 'Nail Studio'),
+        bookingId: bookingDetails.id,
+        date: formattedDate,
+        time: formattedTime,
+        service: bookingDetails.serviceName,
+        totalAmount: bookingDetails.totalAmount.toFixed(2),
+        depositAmount: bookingDetails.depositAmount?.toFixed(2),
+        remainingAmount: bookingDetails.depositAmount ? 
+          (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2) : null,
+        status: bookingDetails.status,
+        paymentStatus: bookingDetails.paymentStatus,
+        businessAddress: this.configService.get<string>('BUSINESS_ADDRESS'),
+        businessPhone: this.configService.get<string>('BUSINESS_PHONE'),
+        googleMapsUrl: this.configService.get<string>('GOOGLE_MAPS_URL'),
+        managementUrl: `${this.configService.get<string>('FRONTEND_URL')}/bookings/${bookingDetails.id}`,
+        cancelUrl: `${this.configService.get<string>('FRONTEND_URL')}/bookings/${bookingDetails.id}/cancel`,
+      });
 
-    await this.sendMail({
-      to: email,
-      subject: 'Booking Confirmation',
-      html
-    });
+      await this.transporter.sendMail({
+        from: `"${this.configService.get<string>('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
+        to: email,
+        subject: 'Your Booking is Confirmed! 💅',
+        html,
+      });
+
+      this.logger.log(`Booking confirmation email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send booking confirmation email to ${email}:`, error);
+      throw error;
+    }
   }
 } 
