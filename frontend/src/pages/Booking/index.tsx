@@ -5,7 +5,7 @@ import { FaSpa } from 'react-icons/fa';
 import { GiNails } from 'react-icons/gi';
 import { format, addDays, setHours, setMinutes, isBefore,  } from 'date-fns';
 import { HiOutlineCalendar, HiOutlineClock, } from 'react-icons/hi';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { bookingApi,  } from '../../api/bookingApi';
@@ -80,6 +80,7 @@ const BookingPage: React.FC = () => {
   const [selectedTime, setSelectedTime] = useState<string>('');
  
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated,} = useAuth();
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -235,11 +236,13 @@ const BookingPage: React.FC = () => {
     try {
       if (!isAuthenticated) {
         toast.error('Please login to make a booking');
-        navigate('/login');
+        navigate('/login', { 
+          state: { from: location.pathname } 
+        });
         return;
       }
 
-      const selectedServiceData = getSelectedService();
+      const selectedServiceData = services?.find(s => s.id === selectedService);
       if (!selectedServiceData) {
         toast.error('Please select a service');
         return;
@@ -275,33 +278,22 @@ const BookingPage: React.FC = () => {
         notes: bookingNotes || ''
       };
 
-      // Validate booking data
-      const validationResult = bookingValidationSchema.safeParse(bookingData);
-      if (!validationResult.success) {
-        const formattedErrors: Record<string, string> = {};
-        validationResult.error.errors.forEach(error => {
-          if (error.path) {
-            formattedErrors[error.path.join('.')] = error.message;
-          }
-        });
-        setValidationErrors(formattedErrors);
-        toast.error('Please check your booking details');
-        return;
-      }
-
       const result = await createBookingMutation.mutateAsync(bookingData);
       
       if (result) {
         toast.success('Booking created successfully!');
         navigate('/bookings/' + result._id);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Booking error:', error);
-      if (error instanceof Error) {
-        toast.error(error.message || 'Failed to create booking');
-      } else {
-        toast.error('Failed to create booking');
+      if (error.message === 'Please login to make a booking') {
+        toast.error(error.message);
+        navigate('/login', { 
+          state: { from: location.pathname }
+        });
+        return;
       }
+      toast.error(error.message || 'Failed to create booking');
     }
   };
 
@@ -328,6 +320,18 @@ const BookingPage: React.FC = () => {
       console.log('Selected service:', selectedService);
     }
   }, [services, selectedService]);
+
+  // Add effect to handle scrolling when service is selected
+  useEffect(() => {
+    if (selectedService && addOnsSectionRef.current) {
+      setTimeout(() => {
+        addOnsSectionRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 300); // Small delay to ensure smooth transition
+    }
+  }, [selectedService]);
 
   return (
     <Section className="pt-20 min-h-screen">

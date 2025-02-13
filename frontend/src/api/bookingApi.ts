@@ -39,13 +39,13 @@ export const bookingApi = {
         addOnIds: data.addOnIds || []
       };
 
-      console.log('Sending booking request:', formattedData);
       const response = await api.post('/bookings', formattedData);
-      console.log('Booking response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Booking error:', error);
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Please login to make a booking');
+        }
         if (error.response?.status === 404) {
           throw new Error('Service not found. Please check if the service is still available.');
         }

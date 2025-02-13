@@ -1,7 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, CanActivate, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
-import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
+import { ExecutionContext } from '@nestjs/common';
+import * as jwt from 'jsonwebtoken';
+import { UserRole } from '../auth/enums/user-role.enum';
 
 // Define the JWT payload interface
 interface JwtPayload {
@@ -10,37 +13,38 @@ interface JwtPayload {
   role: string;
 }
 
-// Update the RequestWithUser interface
+// Define the RequestWithUser interface
 export interface RequestWithUser extends Request {
-  user?: JwtPayload;
+  user?: {
+    userId: string;
+    email: string;
+    role: UserRole;
+  };
 }
 
 @Injectable()
-export class AuthMiddleware extends AuthGuard('jwt') {
-  constructor(private jwtService: JwtService) {
-    super();
-  }
+export class AuthMiddleware implements NestMiddleware {
+  constructor(private readonly configService: ConfigService, private readonly jwtService: JwtService) {}
 
-  async canActivate(context: any): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const token = request.headers.authorization?.split(' ')[1];
+  async use(req: RequestWithUser, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
     
-    if (!token) {
-      throw new UnauthorizedException('No token provided');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = await this.jwtService.verify(token);
+        req.user = decoded;
+      } catch (error) {
+        // Token verification failed, but we'll let the guard handle the error
+      }
     }
-
-    try {
-      const decoded = this.jwtService.verify(token) as JwtPayload;
-      request.user = decoded;
-      return true;
-    } catch (error) {
-      throw new UnauthorizedException('Invalid token');
-    }
+    next();
   }
 }
 
-export function isAdmin(req: RequestWithUser, res: Response, next: NextFunction) {
-  const user = req.user;
+// Helper function to check admin role
+export function isAdmin(req: Request, res: Response, next: NextFunction) {
+  const user = req.user as JwtPayload;
   if (user?.role !== 'admin') {
     throw new UnauthorizedException('Admin access required');
   }

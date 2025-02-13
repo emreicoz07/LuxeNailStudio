@@ -74,30 +74,22 @@ export class BookingsService {
 
   async create(createBookingDto: CreateBookingDto, user: UserFromRequest): Promise<BookingDocument> {
     try {
-      this.logger.debug(`Creating booking for user: ${user._id}, service: ${createBookingDto.serviceId}`);
-      
-      // Validate service exists and is active
-      const service = await this.validateService(createBookingDto.serviceId);
-      
-      // Validate add-ons
-      const addOns = await this.validateAddOns(createBookingDto.addOnIds || []);
-      const totalPrice = this.calculateTotalPrice(service, addOns);
-      const totalDuration = this.calculateTotalDuration(service, addOns);
-      const depositAmount = this.calculateDepositAmount(service);
-
-      if (createBookingDto.amount !== totalPrice) {
-        throw new BadRequestException(`Invalid total amount. Expected: ${totalPrice}`);
+      if (!user || !user.userId) {
+        throw new UnauthorizedException('User not authenticated');
       }
 
-      // Create booking
+      this.logger.debug(`Creating booking for user: ${user.userId}, service: ${createBookingDto.serviceId}`);
+      
+      const service = await this.validateService(createBookingDto.serviceId);
+      const addOns = await this.validateAddOns(createBookingDto.addOnIds || []);
+      
       const booking = new this.bookingModel({
-        userId: user._id,
+        userId: new Types.ObjectId(user.userId),
         serviceId: service._id,
         addOnIds: addOns.map(addOn => addOn._id),
         dateTime: createBookingDto.appointmentDate,
-        duration: totalDuration,
-        totalAmount: totalPrice,
-        depositAmount,
+        duration: this.calculateTotalDuration(service, addOns),
+        totalAmount: createBookingDto.amount,
         status: BookingStatus.PENDING,
         notes: createBookingDto.notes,
         paymentStatus: PaymentStatus.UNPAID
@@ -105,32 +97,11 @@ export class BookingsService {
 
       const savedBooking = await booking.save();
       const populatedBooking = await this.populateBookingDetails(savedBooking._id);
-
+      
       if (!populatedBooking) {
         throw new NotFoundException('Booking not found after creation');
       }
-
-      // Send confirmation email
-      await this.emailService.sendBookingConfirmation({
-        email: user.email,
-        firstName: user.name.split(' ')[0],
-        lastName: user.name.split(' ').slice(1).join(' '),
-        name: user.name,
-        bookingDetails: {
-          id: populatedBooking._id.toString(),
-          dateTime: populatedBooking.dateTime,
-          totalAmount: populatedBooking.totalAmount,
-          status: populatedBooking.status,
-          paymentStatus: populatedBooking.paymentStatus,
-          serviceName: service.name,
-          notes: populatedBooking.notes,
-          addOnServices: addOns.map(addOn => ({
-            name: addOn.name,
-            price: addOn.price
-          }))
-        }
-      });
-
+      
       return populatedBooking;
     } catch (error) {
       this.logger.error(`Failed to create booking: ${error.message}`, error.stack);

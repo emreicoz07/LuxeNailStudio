@@ -8,7 +8,8 @@ import {
   UseGuards,
   Request,
   NotFoundException,
-  Logger
+  Logger,
+  UnauthorizedException
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -20,7 +21,6 @@ import { Model } from 'mongoose';
 import { Service, ServiceDocument } from './schemas/service.schema';
 
 @Controller('bookings')
-@UseGuards(JwtAuthGuard)
 export class BookingsController {
   private readonly logger = new Logger(BookingsController.name);
 
@@ -31,17 +31,32 @@ export class BookingsController {
   ) {}
 
   @Post()
-  async create(@Body() createBookingDto: CreateBookingDto, @Request() req: RequestWithUser) {
+  @UseGuards(JwtAuthGuard)
+  async create(@Request() req: RequestWithUser, @Body() createBookingDto: CreateBookingDto) {
     try {
-      this.logger.debug(`Creating booking with service ID: ${createBookingDto.serviceId}`);
+      if (!req.user) {
+        throw new UnauthorizedException('User not authenticated');
+      }
+
+      this.logger.debug(`Creating booking for user: ${req.user.userId}, service: ${createBookingDto.serviceId}`);
+      
       // Verify service exists before creating booking
       const service = await this.serviceModel.findById(createBookingDto.serviceId);
       if (!service) {
         throw new NotFoundException('Service not found');
       }
-      return await this.bookingsService.create(createBookingDto, req.user);
+
+      // Pass both the booking data and the user to the service
+      const booking = await this.bookingsService.create(createBookingDto, req.user);
+      
+      return booking;
     } catch (error) {
       this.logger.error(`Error creating booking: ${error.message}`, error.stack);
+      
+      if (error instanceof UnauthorizedException) {
+        throw new UnauthorizedException('Please log in to make a booking');
+      }
+      
       throw error;
     }
   }

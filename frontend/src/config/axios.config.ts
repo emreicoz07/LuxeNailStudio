@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -15,7 +16,7 @@ const axiosInstance = axios.create({
 // Add request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Get token from cookie instead of localStorage
+    // Get token from cookie
     const token = document.cookie
       .split('; ')
       .find(row => row.startsWith('auth_token='))
@@ -23,6 +24,15 @@ axiosInstance.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      // Redirect to login if token is missing and the request requires authentication
+      const requiresAuth = ['/bookings', '/profile'].some(path => 
+        config.url?.startsWith(path)
+      );
+      if (requiresAuth) {
+        window.location.href = '/login';
+        return Promise.reject('Authentication required');
+      }
     }
     return config;
   },
@@ -31,17 +41,20 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Add response interceptor
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       // Clear auth data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      
+      // Show error message
+      toast.error('Please log in to continue');
       
       // Redirect to login
       window.location.href = '/login';
+      return Promise.reject(error);
     }
     return Promise.reject(error);
   }

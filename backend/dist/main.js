@@ -230,7 +230,7 @@ exports.AuthModule = AuthModule = __decorate([
                 useFactory: async (configService) => ({
                     secret: configService.get('JWT_SECRET') || 'your-secret-key',
                     signOptions: {
-                        expiresIn: '24h',
+                        expiresIn: configService.get('JWT_EXPIRATION') || '24h',
                     },
                 }),
                 inject: [config_1.ConfigService],
@@ -851,10 +851,14 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         this.configService = configService;
     }
     async validate(payload) {
+        if (!payload.userId) {
+            throw new common_1.UnauthorizedException('Invalid token payload');
+        }
         return {
             userId: payload.userId,
             email: payload.email,
-            role: payload.role
+            role: payload.role,
+            _id: payload.userId
         };
     }
 };
@@ -906,17 +910,24 @@ let BookingsController = BookingsController_1 = class BookingsController {
         this.serviceModel = serviceModel;
         this.logger = new common_1.Logger(BookingsController_1.name);
     }
-    async create(createBookingDto, req) {
+    async create(req, createBookingDto) {
         try {
-            this.logger.debug(`Creating booking with service ID: ${createBookingDto.serviceId}`);
+            if (!req.user) {
+                throw new common_1.UnauthorizedException('User not authenticated');
+            }
+            this.logger.debug(`Creating booking for user: ${req.user.userId}, service: ${createBookingDto.serviceId}`);
             const service = await this.serviceModel.findById(createBookingDto.serviceId);
             if (!service) {
                 throw new common_1.NotFoundException('Service not found');
             }
-            return await this.bookingsService.create(createBookingDto, req.user);
+            const booking = await this.bookingsService.create(createBookingDto, req.user);
+            return booking;
         }
         catch (error) {
             this.logger.error(`Error creating booking: ${error.message}`, error.stack);
+            if (error instanceof common_1.UnauthorizedException) {
+                throw new common_1.UnauthorizedException('Please log in to make a booking');
+            }
             throw error;
         }
     }
@@ -946,10 +957,11 @@ let BookingsController = BookingsController_1 = class BookingsController {
 exports.BookingsController = BookingsController;
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
-    __param(1, (0, common_1.Request)()),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [typeof (_d = typeof create_booking_dto_1.CreateBookingDto !== "undefined" && create_booking_dto_1.CreateBookingDto) === "function" ? _d : Object, typeof (_e = typeof auth_interface_1.RequestWithUser !== "undefined" && auth_interface_1.RequestWithUser) === "function" ? _e : Object]),
+    __metadata("design:paramtypes", [typeof (_d = typeof auth_interface_1.RequestWithUser !== "undefined" && auth_interface_1.RequestWithUser) === "function" ? _d : Object, typeof (_e = typeof create_booking_dto_1.CreateBookingDto !== "undefined" && create_booking_dto_1.CreateBookingDto) === "function" ? _e : Object]),
     __metadata("design:returntype", Promise)
 ], BookingsController.prototype, "create", null);
 __decorate([
@@ -977,7 +989,6 @@ __decorate([
 ], BookingsController.prototype, "checkServiceStatus", null);
 exports.BookingsController = BookingsController = BookingsController_1 = __decorate([
     (0, common_1.Controller)('bookings'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(2, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
     __metadata("design:paramtypes", [typeof (_a = typeof bookings_service_1.BookingsService !== "undefined" && bookings_service_1.BookingsService) === "function" ? _a : Object, typeof (_b = typeof stripe_service_1.StripeService !== "undefined" && stripe_service_1.StripeService) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object])
 ], BookingsController);
@@ -1124,23 +1135,19 @@ let BookingsService = BookingsService_1 = class BookingsService {
     }
     async create(createBookingDto, user) {
         try {
-            this.logger.debug(`Creating booking for user: ${user._id}, service: ${createBookingDto.serviceId}`);
+            if (!user || !user.userId) {
+                throw new common_1.UnauthorizedException('User not authenticated');
+            }
+            this.logger.debug(`Creating booking for user: ${user.userId}, service: ${createBookingDto.serviceId}`);
             const service = await this.validateService(createBookingDto.serviceId);
             const addOns = await this.validateAddOns(createBookingDto.addOnIds || []);
-            const totalPrice = this.calculateTotalPrice(service, addOns);
-            const totalDuration = this.calculateTotalDuration(service, addOns);
-            const depositAmount = this.calculateDepositAmount(service);
-            if (createBookingDto.amount !== totalPrice) {
-                throw new common_1.BadRequestException(`Invalid total amount. Expected: ${totalPrice}`);
-            }
             const booking = new this.bookingModel({
-                userId: user._id,
+                userId: new mongoose_2.Types.ObjectId(user.userId),
                 serviceId: service._id,
                 addOnIds: addOns.map(addOn => addOn._id),
                 dateTime: createBookingDto.appointmentDate,
-                duration: totalDuration,
-                totalAmount: totalPrice,
-                depositAmount,
+                duration: this.calculateTotalDuration(service, addOns),
+                totalAmount: createBookingDto.amount,
                 status: booking_schema_1.BookingStatus.PENDING,
                 notes: createBookingDto.notes,
                 paymentStatus: booking_schema_1.PaymentStatus.UNPAID
@@ -1150,25 +1157,6 @@ let BookingsService = BookingsService_1 = class BookingsService {
             if (!populatedBooking) {
                 throw new common_1.NotFoundException('Booking not found after creation');
             }
-            await this.emailService.sendBookingConfirmation({
-                email: user.email,
-                firstName: user.name.split(' ')[0],
-                lastName: user.name.split(' ').slice(1).join(' '),
-                name: user.name,
-                bookingDetails: {
-                    id: populatedBooking._id.toString(),
-                    dateTime: populatedBooking.dateTime,
-                    totalAmount: populatedBooking.totalAmount,
-                    status: populatedBooking.status,
-                    paymentStatus: populatedBooking.paymentStatus,
-                    serviceName: service.name,
-                    notes: populatedBooking.notes,
-                    addOnServices: addOns.map(addOn => ({
-                        name: addOn.name,
-                        price: addOn.price
-                    }))
-                }
-            });
             return populatedBooking;
         }
         catch (error) {
@@ -2179,38 +2167,36 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthMiddleware = void 0;
 exports.isAdmin = isAdmin;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const jwt_1 = __webpack_require__(/*! @nestjs/jwt */ "@nestjs/jwt");
-const passport_1 = __webpack_require__(/*! @nestjs/passport */ "@nestjs/passport");
-let AuthMiddleware = class AuthMiddleware extends (0, passport_1.AuthGuard)('jwt') {
-    constructor(jwtService) {
-        super();
+const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
+let AuthMiddleware = class AuthMiddleware {
+    constructor(configService, jwtService) {
+        this.configService = configService;
         this.jwtService = jwtService;
     }
-    async canActivate(context) {
-        const request = context.switchToHttp().getRequest();
-        const token = request.headers.authorization?.split(' ')[1];
-        if (!token) {
-            throw new common_1.UnauthorizedException('No token provided');
+    async use(req, res, next) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            try {
+                const decoded = await this.jwtService.verify(token);
+                req.user = decoded;
+            }
+            catch (error) {
+            }
         }
-        try {
-            const decoded = this.jwtService.verify(token);
-            request.user = decoded;
-            return true;
-        }
-        catch (error) {
-            throw new common_1.UnauthorizedException('Invalid token');
-        }
+        next();
     }
 };
 exports.AuthMiddleware = AuthMiddleware;
 exports.AuthMiddleware = AuthMiddleware = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [typeof (_a = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _a : Object])
+    __metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object, typeof (_b = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _b : Object])
 ], AuthMiddleware);
 function isAdmin(req, res, next) {
     const user = req.user;
