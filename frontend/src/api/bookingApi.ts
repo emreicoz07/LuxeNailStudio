@@ -63,5 +63,39 @@ export const bookingApi = {
       params: { date, serviceId }
     });
     return response.data;
+  },
+
+  getServices: async (category?: string) => {
+    try {
+      const response = await api.get('/services', {
+        params: { 
+          category: category?.toUpperCase() // Ensure uppercase for consistency
+        }
+      });
+      
+      return response.data.map((service: any) => ({
+        id: service._id,
+        name: service.name,
+        description: service.description,
+        duration: service.duration,
+        price: service.price,
+        category: service.category,
+        deposit: service.deposit,
+        imageUrl: service.imageUrl
+      }));
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      throw error;
+    }
+  },
+
+  getAddOns: async (serviceId: string) => {
+    try {
+      const response = await api.get(`/services/${serviceId}/addons`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching add-ons:', error);
+      throw error;
+    }
   }
 }; 

@@ -12,19 +12,19 @@ export class Service {
   description: string;
 
   @Prop({ required: true })
-  price: number;
-
-  @Prop({ required: true })
   duration: number;
 
+  @Prop({ required: true })
+  price: number;
+
   @Prop()
-  image?: string;
+  imageUrl?: string;
 
-  @Prop({ default: true })
-  isActive: boolean;
+  @Prop({ required: true })
+  category: string;
 
-  @Prop({ type: [String], default: [] })
-  categories: string[];
+  @Prop({ default: 0 })
+  deposit: number;
 }
 
 export const ServiceSchema = SchemaFactory.createForClass(Service); 

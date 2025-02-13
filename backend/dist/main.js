@@ -1642,12 +1642,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a, _b;
+var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServiceSchema = exports.Service = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
-const category_schema_1 = __webpack_require__(/*! ./category.schema */ "./src/bookings/schemas/category.schema.ts");
 const service_category_enum_1 = __webpack_require__(/*! ../enums/service-category.enum */ "./src/bookings/enums/service-category.enum.ts");
 let Service = class Service {
 };
@@ -1661,39 +1659,39 @@ __decorate([
     __metadata("design:type", String)
 ], Service.prototype, "description", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, min: 0 }),
-    __metadata("design:type", Number)
-], Service.prototype, "price", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ required: true, min: 0 }),
+    (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", Number)
 ], Service.prototype, "duration", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: mongoose_2.Schema.Types.ObjectId, ref: 'Category', required: true }),
-    __metadata("design:type", typeof (_a = typeof category_schema_1.Category !== "undefined" && category_schema_1.Category) === "function" ? _a : Object)
-], Service.prototype, "category", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ type: String, enum: service_category_enum_1.ServiceCategory, required: true }),
-    __metadata("design:type", typeof (_b = typeof service_category_enum_1.ServiceCategory !== "undefined" && service_category_enum_1.ServiceCategory) === "function" ? _b : Object)
-], Service.prototype, "serviceCategory", void 0);
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Service.prototype, "price", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], Service.prototype, "imageUrl", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({
+        type: String,
+        enum: service_category_enum_1.ServiceCategory,
+        required: true,
+        index: true
+    }),
+    __metadata("design:type", typeof (_a = typeof service_category_enum_1.ServiceCategory !== "undefined" && service_category_enum_1.ServiceCategory) === "function" ? _a : Object)
+], Service.prototype, "category", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Service.prototype, "deposit", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ default: true }),
     __metadata("design:type", Boolean)
 ], Service.prototype, "isActive", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ min: 0, default: 0 }),
-    __metadata("design:type", Number)
-], Service.prototype, "deposit", void 0);
 exports.Service = Service = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Service);
 exports.ServiceSchema = mongoose_1.SchemaFactory.createForClass(Service);
 exports.ServiceSchema.index({ category: 1 });
-exports.ServiceSchema.index({ serviceCategory: 1 });
 exports.ServiceSchema.index({ isActive: 1 });
 
 
@@ -2258,23 +2256,23 @@ __decorate([
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", Number)
-], Service.prototype, "price", void 0);
+], Service.prototype, "duration", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", Number)
-], Service.prototype, "duration", void 0);
+], Service.prototype, "price", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
-], Service.prototype, "image", void 0);
+], Service.prototype, "imageUrl", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ default: true }),
-    __metadata("design:type", Boolean)
-], Service.prototype, "isActive", void 0);
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Service.prototype, "category", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: [String], default: [] }),
-    __metadata("design:type", Array)
-], Service.prototype, "categories", void 0);
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Service.prototype, "deposit", void 0);
 exports.Service = Service = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Service);
@@ -2307,31 +2305,34 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServicesController = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const services_service_1 = __webpack_require__(/*! ./services.service */ "./src/services/services.service.ts");
+const service_category_enum_1 = __webpack_require__(/*! ../bookings/enums/service-category.enum */ "./src/bookings/enums/service-category.enum.ts");
 let ServicesController = class ServicesController {
     constructor(servicesService) {
         this.servicesService = servicesService;
     }
-    async getAllServices() {
-        return this.servicesService.findAll();
-    }
-    async getServiceById(id) {
-        return this.servicesService.findById(id);
+    async getServices(category) {
+        let serviceCategory;
+        if (category) {
+            const normalizedCategory = category.toUpperCase();
+            if (normalizedCategory in service_category_enum_1.ServiceCategory) {
+                serviceCategory = service_category_enum_1.ServiceCategory[normalizedCategory];
+            }
+            else {
+                throw new common_1.NotFoundException(`Category ${category} not found`);
+            }
+        }
+        const services = await this.servicesService.findAll(serviceCategory);
+        return services;
     }
 };
 exports.ServicesController = ServicesController;
 __decorate([
     (0, common_1.Get)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], ServicesController.prototype, "getAllServices", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Query)('category')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], ServicesController.prototype, "getServiceById", null);
+], ServicesController.prototype, "getServices", null);
 exports.ServicesController = ServicesController = __decorate([
     (0, common_1.Controller)('services'),
     __metadata("design:paramtypes", [typeof (_a = typeof services_service_1.ServicesService !== "undefined" && services_service_1.ServicesService) === "function" ? _a : Object])
@@ -2366,7 +2367,9 @@ exports.ServicesModule = ServicesModule;
 exports.ServicesModule = ServicesModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            mongoose_1.MongooseModule.forFeature([{ name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema }])
+            mongoose_1.MongooseModule.forFeature([
+                { name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema }
+            ])
         ],
         controllers: [services_controller_1.ServicesController],
         providers: [services_service_1.ServicesService],
@@ -2407,11 +2410,20 @@ let ServicesService = class ServicesService {
     constructor(serviceModel) {
         this.serviceModel = serviceModel;
     }
-    async findAll() {
-        return this.serviceModel.find({ isActive: true }).exec();
+    async findAll(category) {
+        const query = category ? {
+            category: { $regex: new RegExp(`^${category}$`, 'i') },
+            isActive: true
+        } : {
+            isActive: true
+        };
+        console.log('MongoDB query:', query);
+        const services = await this.serviceModel.find(query).exec();
+        console.log('Found services:', services);
+        return services;
     }
     async findById(id) {
-        const service = await this.serviceModel.findById(id).exec();
+        const service = await this.serviceModel.findOne({ _id: id, isActive: true }).exec();
         if (!service) {
             throw new common_1.NotFoundException('Service not found');
         }

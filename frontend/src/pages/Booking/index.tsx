@@ -3,42 +3,36 @@ import Section from '../../components/common/Section';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSpa } from 'react-icons/fa';
 import { GiNails } from 'react-icons/gi';
-import { format, addDays, setHours, setMinutes, isBefore, isAfter } from 'date-fns';
-import { HiOutlineCalendar, HiOutlineClock, HiOutlineCash } from 'react-icons/hi';
+import { format, addDays, setHours, setMinutes, isBefore,  } from 'date-fns';
+import { HiOutlineCalendar, HiOutlineClock, } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useMutation } from '@tanstack/react-query';
-import { bookingApi, CreateBookingData } from '../../api/bookingApi';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { bookingApi,  } from '../../api/bookingApi';
 import { useAuth } from '../../hooks/useAuth';
 import { z } from 'zod';
-import { config } from '../../config';
+
 
 type BookingStep = 'category' | 'service' | 'datetime' | 'summary';
 
 interface Service {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  duration: string;
+  duration: number;
   price: number;
   category: string;
-  depositRequired?: boolean;
-  depositAmount?: number;
-  isAddOn?: boolean;
+  deposit: number;
+  imageUrl?: string;
 }
+
+
 
 interface TimeSlot {
   time: string;
   available: boolean;
 }
 
-interface BookingSummary {
-  category: string;
-  service: Service;
-  date: Date;
-  time: string;
-  depositRequired: boolean;
-}
 
 const bookingValidationSchema = z.object({
   serviceId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid service ID format"),
@@ -49,10 +43,7 @@ const bookingValidationSchema = z.object({
   notes: z.string().optional()
 });
 
-interface ApiError {
-  message: string;
-  errors?: Record<string, string[]>;
-}
+
 
 const ScrollIndicator: React.FC = () => (
   <motion.div
@@ -87,9 +78,9 @@ const BookingPage: React.FC = () => {
   const [selectedService, setSelectedService] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+ 
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated,} = useAuth();
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const addOnsSectionRef = useRef<HTMLDivElement>(null);
@@ -98,308 +89,40 @@ const BookingPage: React.FC = () => {
 
   const categories = [
     {
-      id: 'manicure',
+      id: 'MANICURE',
       title: 'Manicure',
       icon: <GiNails className="w-8 h-8" />,
       description: 'Full range of manicure services including spa, gel, and extensions'
     },
     {
-      id: 'pedicure',
+      id: 'PEDICURE',
       title: 'Pedicure',
       icon: <FaSpa className="w-8 h-8" />,
       description: 'Luxurious pedicure treatments for ultimate foot care'
     }
   ];
 
-  const mainServices: Service[] = [
-    {
-      id: '507f1f77bcf86cd799439001',
-      title: 'Manicure Spa (without polish)',
-      description: 'Soak off in water with aroma oil + scrub cuticles + cleaning cuticles + shape nails',
-      duration: '30 min',
-      price: 15,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 7.50
+  const { data: services, isLoading: isLoadingServices } = useQuery({
+    queryKey: ['services', selectedCategory],
+    queryFn: async () => {
+      const data = await bookingApi.getServices(selectedCategory);
+      console.log('Services for category:', selectedCategory, data);
+      return data;
     },
-    {
-      id: '507f1f77bcf86cd799439002',
-      title: 'Manicure + Normal Polish',
-      description: 'Normal polish is dried naturally and can be cleaned with acetone',
-      duration: '60 min',
-      price: 19,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 9.50
-    },
-    {
-      id: '507f1f77bcf86cd799439003',
-      title: 'Manicure + Gel Polish',
-      description: 'Semipermanent / Sellac / Gel polish needs to be cured under a UV or LED lamp',
-      duration: '75 min',
-      price: 28,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 14
-    },
-    {
-      id: '507f1f77bcf86cd799439004',
-      title: 'Manicure + Rubber Base',
-      description: 'If your nails need more protection or strengthening, the rubber base may be a better choice',
-      duration: '80 min',
-      price: 31,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 15.50
-    },
-    {
-      id: '507f1f77bcf86cd799439005',
-      title: 'Manicure + Hard Gel',
-      description: 'If you have very weak nails, can use a hard gel to create a solid base',
-      duration: '90 min',
-      price: 33,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 16.50
-    },
-    {
-      id: '507f1f77bcf86cd799439006',
-      title: 'Infills + Hard Gel (Short)',
-      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Hard gel.',
-      duration: '2 hr',
-      price: 35,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 17.50
-    },
-    {
-      id: '507f1f77bcf86cd799439007',
-      title: 'Infills + Hard Gel (Medium)',
-      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Hard gel.',
-      duration: '2 hr',
-      price: 37,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 18.50
-    },
-    {
-      id: '507f1f77bcf86cd799439008',
-      title: 'Infills + Hard Gel (Long)',
-      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Hard gel.',
-      duration: '2 hr 15 min',
-      price: 40,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 20
-    },
-    {
-      id: '507f1f77bcf86cd799439009',
-      title: 'Infills + Acrylic (Short)',
-      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Acrylic.',
-      duration: '2 hr',
-      price: 35,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 17.50
-    },
-    {
-      id: '507f1f77bcf86cd799439010',
-      title: 'Infills + Acrylic (Medium)',
-      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Acrylic.',
-      duration: '2 hr',
-      price: 37,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 18.50
-    },
-    {
-      id: '507f1f77bcf86cd799439011',
-      title: 'Infills + Acrylic (Long)',
-      description: '3 weeks after extension nails or acrylic, hard gel, the natural part of your nail starts to show at the bottom of your artificial nail and you should have that part filled in with the Acrylic.',
-      duration: '2 hr 15 min',
-      price: 40,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 20
-    },
-    {
-      id: '507f1f77bcf86cd799439012',
-      title: 'Full Set Extension + Hard Gel (Short)',
-      description: 'Gel nail extension is a process that involves Hard gel built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
-      duration: '2 hr',
-      price: 50,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 25
-    },
-    {
-      id: '507f1f77bcf86cd799439013',
-      title: 'Full Set Extension + Hard Gel (Medium)',
-      description: 'Gel nail extension is a process that involves Hard gel built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
-      duration: '2 hr 20 min',
-      price: 55,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 27.50
-    },
-    {
-      id: '507f1f77bcf86cd799439014',
-      title: 'Full Set Extension + Hard Gel (Long)',
-      description: 'Gel nail extension is a process that involves Hard gel built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
-      duration: '2 hr 30 min',
-      price: 60,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 30
-    },
-    {
-      id: '507f1f77bcf86cd799439015',
-      title: 'Full Set Extension + Acrylic (Short)',
-      description: 'Gel nail extension is a process that involves Acrylic built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
-      duration: '2 hr',
-      price: 50,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 25
-    },
-    {
-      id: '507f1f77bcf86cd799439016',
-      title: 'Full Set Extension + Acrylic (Medium)',
-      description: 'Gel nail extension is a process that involves Acrylic built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
-      duration: '2 hr 20 min',
-      price: 55,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 27.50
-    },
-    {
-      id: '507f1f77bcf86cd799439017',
-      title: 'Full Set Extension + Acrylic (Long)',
-      description: 'Gel nail extension is a process that involves Acrylic built on a natural nail and cured with UV light. We use a nail form, which is a sticker that goes under the free edge (the tip) of the nail, to extend the length of the nail.',
-      duration: '2 hr 30 min',
-      price: 60,
-      category: 'manicure',
-      depositRequired: true,
-      depositAmount: 30
-    },
-    {
-      id: '507f1f77bcf86cd799439020',
-      title: 'Pedicure Spa (without polish)',
-      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation',
-      duration: '45 min',
-      price: 30,
-      category: 'pedicure',
-      depositRequired: true,
-      depositAmount: 15
-    },
-    {
-      id: '507f1f77bcf86cd799439021',
-      title: 'Pedicure Spa Only (For Gentleman)',
-      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation, for gentleman',
-      duration: '45 min',
-      price: 32,
-      category: 'pedicure',
-      depositRequired: true,
-      depositAmount: 16
-    },
-    {
-      id: '507f1f77bcf86cd799439022',
-      title: 'Toes Normal Polish (without spa)',
-      description: 'Basic toe nail polish application',
-      duration: '50 min',
-      price: 18,
-      category: 'pedicure',
-      depositRequired: true,
-      depositAmount: 9.50
-    },
-    {
-      id: '507f1f77bcf86cd799439023',
-      title: 'Toes Gel Polish (Without Spa)',
-      description: 'Includes cleaning cuticles and shape nails + application of Gel polish',
-      duration: '50 min',
-      price: 25,
-      category: 'pedicure',
-      depositRequired: true,
-      depositAmount: 12.50
-    },
-    {
-      id: '507f1f77bcf86cd799439024',
-      title: 'Pedicure Spa + Normal Polish',
-      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation + application of Normal polish',
-      duration: '75 min',
-      price: 35,
-      category: 'pedicure',
-      depositRequired: true,
-      depositAmount: 17.50
-    },
-    {
-      id: '507f1f77bcf86cd799439025',
-      title: 'Pedicure Spa + Gel Polish',
-      description: 'Pedicure spa in the water which includes callus removal and scrub exfoliation + application of Gel polish',
-      duration: '75 min',
-      price: 40,
-      category: 'pedicure',
-      depositRequired: true,
-      depositAmount: 20
-    },
-  ];
+    enabled: !!selectedCategory,
+    staleTime: 5 * 60 * 1000 // Cache for 5 minutes
+  });
 
-  const serviceAddOns: Service[] = [
-    {
-      id: '507f1f77bcf86cd799439101',
-      title: 'Nail Arts',
-      description: 'From 2 euro each',
-      duration: '10 min',
-      price: 2,
-      category: 'manicure',
-      isAddOn: true
-    },
-    {
-      id: '507f1f77bcf86cd799439102',
-      title: 'French/Ombre',
-      description: 'French or ombre nail design',
-      duration: '20 min',
-      price: 5,
-      category: 'manicure',
-      isAddOn: true
-    },
-    {
-      id: '507f1f77bcf86cd799439103',
-      title: 'Take off gel polish',
-      description: 'Removal of existing gel polish',
-      duration: '15 min',
-      price: 10,
-      category: 'both',
-      isAddOn: true
-    },
-    {
-      id: '507f1f77bcf86cd799439104',
-      title: 'Take off hard gel',
-      description: 'Removal of existing hard gel',
-      duration: '20 min',
-      price: 12,
-      category: 'both',
-      isAddOn: true
-    },
-    {
-      id: '507f1f77bcf86cd799439105',
-      title: 'Take off acrylic',
-      description: 'Removal of existing acrylic',
-      duration: '30 min',
-      price: 12,
-      category: 'both',
-      isAddOn: true
-    },
-    {
-      id: '507f1f77bcf86cd799439106',
-      title: 'Nail effects (Magnetic)',
-      description: 'Special magnetic nail effects',
-      duration: '15 min',
-      price: 5,
-      category: 'both',
-      isAddOn: true
-    }
-  ];
+  const { data: addOns, isLoading: isLoadingAddOns } = useQuery({
+    queryKey: ['addOns', selectedService],
+    queryFn: () => bookingApi.getAddOns(selectedService),
+    enabled: !!selectedService
+  });
+
+  const getSelectedService = (): Service | undefined => {
+    if (!services) return undefined;
+    return services.find((service: Service) => service.id === selectedService);
+  };
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -407,30 +130,16 @@ const BookingPage: React.FC = () => {
   };
 
   const handleServiceSelect = (serviceId: string) => {
-    setSelectedService(serviceId);
+    if (selectedService === serviceId) {
+      setSelectedService('');
+    } else {
+      setSelectedService(serviceId);
+    }
     setSelectedAddOns([]);
-    
-    setTimeout(() => {
-      if (addOnsSectionRef.current) {
-        const yOffset = -100;
-        const y = addOnsSectionRef.current.getBoundingClientRect().top + 
-                 window.pageYOffset + yOffset;
-        
-        window.scrollTo({
-          top: y,
-          behavior: 'smooth'
-        });
-      }
-    }, 100);
   };
-
-  const filteredMainServices = mainServices.filter(
-    service => service.category === selectedCategory
-  );
-
-  const filteredAddOns = serviceAddOns.filter(
-    addon => addon.category === selectedCategory || addon.category === 'both'
-  );
+  const filteredAddOns = addOns?.filter(
+    (addon: Service) => addon.category === selectedCategory || addon.category === 'both'
+  ) || [];
 
   const generateTimeSlots = (selectedDate: Date): TimeSlot[] => {
     const slots: TimeSlot[] = [];
@@ -463,10 +172,6 @@ const BookingPage: React.FC = () => {
     }
   };
 
-  const getSelectedService = (): Service | undefined => {
-    return mainServices.find(service => service.id === selectedService);
-  };
-
   const createBookingMutation = useMutation({
     mutationFn: (bookingData: any) => bookingApi.createBooking(bookingData),
     onError: (error: any) => {
@@ -486,7 +191,7 @@ const BookingPage: React.FC = () => {
 
     // Add prices of selected add-ons
     selectedAddOns.forEach(addOnId => {
-      const addOn = serviceAddOns.find(addon => addon.id === addOnId);
+      const addOn = addOns?.find((addon: { id: string; price: number }) => addon.id === addOnId);
       if (addOn) {
         total += addOn.price;
       }
@@ -495,13 +200,6 @@ const BookingPage: React.FC = () => {
     return total;
   };
 
-  const calculateDepositAmount = () => {
-    const mainService = mainServices.find(service => service.id === selectedService);
-    if (mainService && mainService.price >= 50) {
-      return Math.round(mainService.price * 0.2);
-    }
-    return 0;
-  };
 
   const handleBookingSubmit = async () => {
     try {
@@ -538,7 +236,6 @@ const BookingPage: React.FC = () => {
       appointmentDate.setHours(hour, parseInt(minutes), 0, 0);
 
       const totalAmount = calculateTotalPrice();
-      const depositAmount = calculateDepositAmount();
 
       const bookingData = {
         serviceId: selectedServiceData.id,
@@ -551,8 +248,13 @@ const BookingPage: React.FC = () => {
       // Validate booking data
       const validationResult = bookingValidationSchema.safeParse(bookingData);
       if (!validationResult.success) {
-        const errors = validationResult.error.errors;
-        setValidationErrors(errors);
+        const formattedErrors: Record<string, string> = {};
+        validationResult.error.errors.forEach(error => {
+          if (error.path) {
+            formattedErrors[error.path.join('.')] = error.message;
+          }
+        });
+        setValidationErrors(formattedErrors);
         toast.error('Please check your booking details');
         return;
       }
@@ -563,9 +265,13 @@ const BookingPage: React.FC = () => {
         toast.success('Booking created successfully!');
         navigate('/bookings/' + result._id);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Booking error:', error);
-      toast.error(error.message || 'Failed to create booking');
+      if (error instanceof Error) {
+        toast.error(error.message || 'Failed to create booking');
+      } else {
+        toast.error('Failed to create booking');
+      }
     }
   };
 
@@ -577,6 +283,21 @@ const BookingPage: React.FC = () => {
       behavior: 'smooth'
     });
   };
+
+  const handleAddOnSelect = (addOnId: string) => {
+    setSelectedAddOns(prev => 
+      prev.includes(addOnId)
+        ? prev.filter(id => id !== addOnId)
+        : [...prev, addOnId]
+    );
+  };
+
+  useEffect(() => {
+    if (services) {
+      console.log('Loaded services:', services);
+      console.log('Selected service:', selectedService);
+    }
+  }, [services, selectedService]);
 
   return (
     <Section className="pt-20 min-h-screen">
@@ -659,34 +380,39 @@ const BookingPage: React.FC = () => {
               </div>
               <div className="space-y-6">
                 <h2 className="text-2xl font-semibold">Select Service</h2>
-                <div className="grid gap-6 md:grid-cols-2">
-                  {filteredMainServices.map((service) => (
-                    <button
-                      key={service.id}
-                      onClick={() => handleServiceSelect(service.id)}
-                      className={`p-6 text-left rounded-xl border-2 transition-all duration-300 
-                        ${selectedService === service.id 
-                          ? 'border-primary-500 bg-primary-50' 
-                          : 'border-gray-200 hover:border-primary-200 bg-white'}`}
-                    >
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-semibold">{service.title}</h3>
-                          <span className="font-semibold text-primary-600">€{service.price}</span>
+                {isLoadingServices ? (
+                  <div className="flex justify-center">
+                    <div className="w-12 h-12 rounded-full border-b-2 animate-spin border-primary-500" />
+                  </div>
+                ) : (
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {services?.map((service: Service) => (
+                      <motion.button
+                        key={service.id}
+                        onClick={() => handleServiceSelect(service.id)}
+                        className={`p-4 text-left rounded-lg border-2 transition-all duration-300 relative
+                          ${selectedService === service.id
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-primary-200 bg-white'}
+                          ${selectedService && selectedService !== service.id
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'cursor-pointer hover:shadow-sm'}`}
+                        disabled={selectedService && selectedService !== service.id ? true : false}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-semibold">{service.name}</h3>
+                            <span className="text-primary-600">€{service.price}</span>
+                          </div>
+                          <p className="text-sm text-gray-600">{service.description}</p>
+                          <div className="text-sm text-gray-500">
+                            Duration: {service.duration} minutes
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600">{service.description}</p>
-                        <div className="flex justify-between items-center text-sm text-gray-500">
-                          <span>Duration: {service.duration}</span>
-                          {service.depositRequired && (
-                            <span className="text-primary-600">
-                              Deposit: €{service.depositAmount}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {selectedService && filteredAddOns.length > 0 && (
@@ -727,37 +453,43 @@ const BookingPage: React.FC = () => {
                         }
                       }}
                     >
-                      {filteredAddOns.map((addon, index) => (
-                        <motion.button
-                          key={addon.id}
-                          variants={{
-                            hidden: { opacity: 0, y: 20 },
-                            visible: { opacity: 1, y: 0 }
-                          }}
-                          onClick={() => {
-                            setSelectedAddOns(prev => 
-                              prev.includes(addon.id)
-                                ? prev.filter(id => id !== addon.id)
-                                : [...prev, addon.id]
-                            );
-                          }}
-                          className={`p-4 text-left rounded-lg border-2 transition-all duration-300
-                            ${selectedAddOns.includes(addon.id)
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-primary-200 bg-white'}`}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-semibold">{addon.title}</h3>
-                              <span className="text-primary-600">€{addon.price}</span>
+                      {isLoadingAddOns ? (
+                        <div className="flex justify-center">
+                          <div className="w-12 h-12 rounded-full border-b-2 animate-spin border-primary-500" />
+                        </div>
+                      ) : (
+                        addOns?.map((addon: {
+                          id: string;
+                          name: string;
+                          price: number;
+                          description: string;
+                          duration: number;
+                        }) => (
+                          <motion.button
+                            key={addon.id}
+                            variants={{
+                              hidden: { opacity: 0, y: 20 },
+                              visible: { opacity: 1, y: 0 }
+                            }}
+                            onClick={() => handleAddOnSelect(addon.id)}
+                            className={`p-4 text-left rounded-lg border-2 transition-all duration-300
+                              ${selectedAddOns.includes(addon.id)
+                                ? 'border-primary-500 bg-primary-50'
+                                : 'border-gray-200 hover:border-primary-200 bg-white'}`}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-start">
+                                <h3 className="font-semibold">{addon.name}</h3>
+                                <span className="text-primary-600">€{addon.price}</span>
+                              </div>
+                              <p className="text-sm text-gray-600">{addon.description}</p>
+                              <div className="text-sm text-gray-500">
+                                Duration: {addon.duration} minutes
+                              </div>
                             </div>
-                            <p className="text-sm text-gray-600">{addon.description}</p>
-                            <div className="text-sm text-gray-500">
-                              Duration: {addon.duration}
-                            </div>
-                          </div>
-                        </motion.button>
-                      ))}
+                          </motion.button>
+                        ))
+                      )}
                     </motion.div>
                   </motion.div>
                 </div>
@@ -773,7 +505,7 @@ const BookingPage: React.FC = () => {
                 </button>
                 <button
                   onClick={handleContinueToDateTime}
-                  disabled={!selectedService}
+                  disabled={!selectedService || selectedService === ''}
                   className="px-6 py-2 text-white rounded-lg transition-colors duration-200 bg-primary-600 disabled:opacity-50 hover:bg-primary-700"
                 >
                   Continue
@@ -814,7 +546,7 @@ const BookingPage: React.FC = () => {
                     
                     return (
                       <button
-                        key={index}
+                        key={date.toISOString()}
                         onClick={() => setSelectedDate(date)}
                         className={`
                           p-4 rounded-lg border-2 transition-all duration-300
@@ -915,7 +647,7 @@ const BookingPage: React.FC = () => {
                     </div>
                     <div className="space-y-2">
                       <p className="text-gray-600">Service</p>
-                      <p className="font-semibold">{getSelectedService()?.title}</p>
+                      <p className="font-semibold">{getSelectedService()?.name}</p>
                     </div>
                   </div>
                 </div>
@@ -954,10 +686,10 @@ const BookingPage: React.FC = () => {
                       <>
                         <div className="text-gray-600">Add-ons:</div>
                         {selectedAddOns.map(addOnId => {
-                          const addOn = serviceAddOns.find(addon => addon.id === addOnId);
+                          const addOn = addOns?.find((addon: { id: string }) => addon.id === addOnId);
                           return (
                             <div key={addOnId} className="flex justify-between items-center pl-4">
-                              <span className="text-gray-600">{addOn?.title}</span>
+                              <span className="text-gray-600">{addOn?.name}</span>
                               <span className="font-semibold">€{addOn?.price}</span>
                             </div>
                           );
@@ -965,10 +697,10 @@ const BookingPage: React.FC = () => {
                       </>
                     )}
                     
-                    {getSelectedService()?.depositRequired && (
+                    {typeof getSelectedService()?.deposit === 'number' && (
                       <div className="flex justify-between items-center text-primary-600">
                         <span>Required Deposit</span>
-                        <span className="font-semibold">€{getSelectedService()?.depositAmount}</span>
+                        <span className="font-semibold">€{getSelectedService()?.deposit}</span>
                       </div>
                     )}
                     
@@ -989,7 +721,7 @@ const BookingPage: React.FC = () => {
                     id="notes"
                     name="notes"
                     rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                     placeholder="Any special requests or notes for your appointment..."
                     value={bookingNotes}
                     onChange={(e) => setBookingNotes(e.target.value)}

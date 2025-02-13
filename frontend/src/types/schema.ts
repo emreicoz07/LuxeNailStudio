@@ -7,6 +7,8 @@ export enum UserRole {
 }
 
 export enum ServiceCategory {
+  BASIC = 'BASIC',
+  PREMIUM = 'PREMIUM',
   MANICURE = 'MANICURE',
   PEDICURE = 'PEDICURE',
   NAIL_ART = 'NAIL_ART',
@@ -27,10 +29,14 @@ export interface Service {
   id: string;
   name: string;
   description: string;
-  duration: number; // in minutes
+  duration: number;
   price: number;
+  category: {
+    id: string;
+    name: string;
+  };
+  serviceCategory: ServiceCategory;
   imageUrl?: string;
-  category: ServiceCategory;
   isActive: boolean;
   deposit: number;
   createdAt: Date;
