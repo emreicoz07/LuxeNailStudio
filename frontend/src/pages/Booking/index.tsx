@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Section from '../../components/common/Section';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSpa } from 'react-icons/fa';
@@ -53,6 +53,33 @@ interface ApiError {
   errors?: Record<string, string[]>;
 }
 
+const ScrollIndicator: React.FC = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 0 }}
+    animate={{ opacity: 1, y: [0, 10, 0] }}
+    transition={{ 
+      duration: 1.5,
+      repeat: Infinity,
+      repeatType: "reverse"
+    }}
+    className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-primary-500"
+  >
+    <svg 
+      className="w-6 h-6"
+      fill="none" 
+      stroke="currentColor" 
+      viewBox="0 0 24 24"
+    >
+      <path 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        strokeWidth={2} 
+        d="M19 14l-7 7m0 0l-7-7m7 7V3"
+      />
+    </svg>
+  </motion.div>
+);
+
 const BookingPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<BookingStep>('category');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -64,6 +91,7 @@ const BookingPage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const addOnsSectionRef = useRef<HTMLDivElement>(null);
 
   const categories = [
     {
@@ -378,6 +406,19 @@ const BookingPage: React.FC = () => {
   const handleServiceSelect = (serviceId: string) => {
     setSelectedService(serviceId);
     setSelectedAddOns([]);
+    
+    setTimeout(() => {
+      if (addOnsSectionRef.current) {
+        const yOffset = -100;
+        const y = addOnsSectionRef.current.getBoundingClientRect().top + 
+                 window.pageYOffset + yOffset;
+        
+        window.scrollTo({
+          top: y,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
   };
 
   const filteredMainServices = mainServices.filter(
@@ -564,7 +605,7 @@ const BookingPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              className="space-y-8 relative"
             >
               <div className="flex items-center mb-8">
                 <button
@@ -609,49 +650,77 @@ const BookingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Add-ons Section - Only show after selecting a main service */}
               {selectedService && filteredAddOns.length > 0 && (
-                <div className="space-y-6 mt-8">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-semibold">Optional Add-ons</h2>
-                    {selectedAddOns.length > 0 && (
-                      <button
-                        onClick={() => setSelectedAddOns([])}
-                        className="text-sm text-primary-600 hover:text-primary-700"
-                      >
-                        Clear all
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {filteredAddOns.map((addon) => (
-                      <button
-                        key={addon.id}
-                        onClick={() => {
-                          setSelectedAddOns(prev => 
-                            prev.includes(addon.id)
-                              ? prev.filter(id => id !== addon.id)
-                              : [...prev, addon.id]
-                          );
-                        }}
-                        className={`p-4 text-left rounded-lg border-2 transition-all duration-300
-                          ${selectedAddOns.includes(addon.id)
-                            ? 'border-primary-500 bg-primary-50'
-                            : 'border-gray-200 hover:border-primary-200 bg-white'}`}
-                      >
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-start">
-                            <h3 className="font-semibold">{addon.title}</h3>
-                            <span className="text-primary-600">€{addon.price}</span>
+                <ScrollIndicator />
+              )}
+
+              {selectedService && filteredAddOns.length > 0 && (
+                <div 
+                  ref={addOnsSectionRef}
+                  className="space-y-6 mt-8 add-ons-section scroll-mt-24"
+                >
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-semibold">Optional Add-ons</h2>
+                      {selectedAddOns.length > 0 && (
+                        <button
+                          onClick={() => setSelectedAddOns([])}
+                          className="text-sm text-primary-600 hover:text-primary-700"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                    
+                    <motion.div 
+                      className="grid gap-4 md:grid-cols-3"
+                      initial="hidden"
+                      animate="visible"
+                      variants={{
+                        visible: {
+                          transition: {
+                            staggerChildren: 0.1
+                          }
+                        }
+                      }}
+                    >
+                      {filteredAddOns.map((addon, index) => (
+                        <motion.button
+                          key={addon.id}
+                          variants={{
+                            hidden: { opacity: 0, y: 20 },
+                            visible: { opacity: 1, y: 0 }
+                          }}
+                          onClick={() => {
+                            setSelectedAddOns(prev => 
+                              prev.includes(addon.id)
+                                ? prev.filter(id => id !== addon.id)
+                                : [...prev, addon.id]
+                            );
+                          }}
+                          className={`p-4 text-left rounded-lg border-2 transition-all duration-300
+                            ${selectedAddOns.includes(addon.id)
+                              ? 'border-primary-500 bg-primary-50'
+                              : 'border-gray-200 hover:border-primary-200 bg-white'}`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start">
+                              <h3 className="font-semibold">{addon.title}</h3>
+                              <span className="text-primary-600">€{addon.price}</span>
+                            </div>
+                            <p className="text-sm text-gray-600">{addon.description}</p>
+                            <div className="text-sm text-gray-500">
+                              Duration: {addon.duration}
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600">{addon.description}</p>
-                          <div className="text-sm text-gray-500">
-                            Duration: {addon.duration}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  </motion.div>
                 </div>
               )}
 
