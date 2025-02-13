@@ -50,6 +50,22 @@ const Navbar: React.FC = () => {
     navigate('/appointments');
   };
 
+  // Updated helper function to get full name with fallback
+  const getUserDisplayName = () => {
+    if (!user) return '';
+    if (!user.firstName && !user.email) return 'User';
+    return user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}`
+      : user.email.split('@')[0]; // Fallback to email username if no name
+  };
+
+  // Helper function to get short display name for mobile
+  const getShortDisplayName = () => {
+    if (!user) return '';
+    if (user.firstName) return user.firstName;
+    return user.email.split('@')[0];
+  };
+
   return (
     <nav className="fixed w-full bg-white shadow-md z-50">
       <div className="container mx-auto px-4">
@@ -85,7 +101,7 @@ const Navbar: React.FC = () => {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center space-x-2 text-text-secondary hover:text-primary-500"
                 >
-                  <span>{user.name}</span>
+                  <span className="font-medium">{getUserDisplayName()}</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -100,11 +116,25 @@ const Navbar: React.FC = () => {
                       className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
                     >
                       <div className="py-1">
+                        {user.firstName && user.lastName && (
+                          <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
+                            Signed in as<br />
+                            <span className="font-medium text-gray-900">{user.email}</span>
+                          </div>
+                        )}
                         <Link
                           to="/profile"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowUserMenu(false)}
                         >
                           Profile
+                        </Link>
+                        <Link
+                          to="/appointments"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          My Appointments
                         </Link>
                         <button
                           onClick={handleLogout}
@@ -157,6 +187,14 @@ const Navbar: React.FC = () => {
           exit={{ opacity: 0, y: -10 }}
         >
           <div className="px-2 pt-2 pb-3 space-y-1">
+            {/* Show user info when logged in */}
+            {user && (
+              <div className="px-3 py-2 border-b border-gray-200 mb-2">
+                <div className="font-medium text-gray-900">{getShortDisplayName()}</div>
+                <div className="text-sm text-gray-500">{user.email}</div>
+              </div>
+            )}
+
             {navigation.map((item) => (
               <Link
                 key={item.name}
@@ -171,7 +209,34 @@ const Navbar: React.FC = () => {
                 {item.name}
               </Link>
             ))}
-            {!user && (
+
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-primary-500 hover:bg-primary-50"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Profile
+                </Link>
+                <Link
+                  to="/appointments"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-primary-500 hover:bg-primary-50"
+                  onClick={() => setIsOpen(false)}
+                >
+                  My Appointments
+                </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-primary-500 hover:bg-primary-50"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
               <Link
                 to="/login"
                 className="block px-3 py-2 rounded-md text-base font-medium text-text-secondary hover:text-primary-500 hover:bg-primary-50"
@@ -180,6 +245,7 @@ const Navbar: React.FC = () => {
                 Login
               </Link>
             )}
+
             <button
               onClick={() => {
                 setIsOpen(false);
