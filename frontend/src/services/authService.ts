@@ -66,7 +66,6 @@ class AuthService {
       const response = await axiosInstance.post<AuthResponse>(`${API_URL}/register`, data);
       
       if (response.data.token) {
-        // Store token in HttpOnly cookie
         document.cookie = `auth_token=${response.data.token}; path=/; secure; samesite=strict`;
         localStorage.setItem('user', JSON.stringify(response.data.user));
         return response.data;
@@ -75,7 +74,9 @@ class AuthService {
     } catch (error: any) {
       console.error('Registration error:', error.response?.data);
       throw error.response?.data?.message 
-        ? new Error(error.response.data.message)
+        ? new Error(Array.isArray(error.response.data.message) 
+            ? error.response.data.message[0] 
+            : error.response.data.message)
         : new Error('Registration failed. Please try again later.');
     }
   }

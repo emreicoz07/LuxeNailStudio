@@ -264,6 +264,7 @@ const user_schema_1 = __webpack_require__(/*! ./schemas/user.schema */ "./src/au
 const common_2 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const email_service_1 = __webpack_require__(/*! ../email/email.service */ "./src/email/email.service.ts");
 const crypto_1 = __webpack_require__(/*! crypto */ "crypto");
+const user_role_enum_1 = __webpack_require__(/*! ./enums/user-role.enum */ "./src/auth/enums/user-role.enum.ts");
 let AuthService = AuthService_1 = class AuthService {
     constructor(userModel, jwtService, emailService) {
         this.userModel = userModel;
@@ -272,27 +273,28 @@ let AuthService = AuthService_1 = class AuthService {
         this.logger = new common_2.Logger(AuthService_1.name);
     }
     async register(registerDto) {
-        const { email, password, confirmPassword, name, phone, subscribe, agreeToTerms } = registerDto;
+        const { email, password, confirmPassword, firstName, lastName, phone, subscribe, agreeToTerms } = registerDto;
         if (!agreeToTerms) {
             throw new common_1.BadRequestException('You must agree to the Terms & Conditions');
         }
         if (password !== confirmPassword) {
             throw new common_1.BadRequestException('Passwords do not match');
         }
-        const existingUser = await this.userModel.findOne({ email });
-        if (existingUser) {
-            throw new common_1.ConflictException('Email already registered');
-        }
         try {
+            const existingUser = await this.userModel.findOne({ email });
+            if (existingUser) {
+                throw new common_1.ConflictException('Email already registered');
+            }
             const hashedPassword = await bcrypt.hash(password, 10);
             const user = await this.userModel.create({
                 email,
                 password: hashedPassword,
-                name,
+                firstName,
+                lastName,
                 phone,
                 subscribe: subscribe || false,
                 agreeToTerms,
-                role: 'user',
+                role: user_role_enum_1.UserRole.CLIENT,
                 emailVerified: false
             });
             const token = this.jwtService.sign({
@@ -300,7 +302,7 @@ let AuthService = AuthService_1 = class AuthService {
                 email: user.email,
                 role: user.role
             });
-            await this.emailService.sendWelcomeEmail(email, name)
+            this.emailService.sendWelcomeEmail(email, `${firstName} ${lastName}`)
                 .catch(error => {
                 this.logger.error('Failed to send welcome email:', error);
             });
@@ -309,7 +311,8 @@ let AuthService = AuthService_1 = class AuthService {
                 user: {
                     id: user._id,
                     email: user.email,
-                    name: user.name,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
                     phone: user.phone,
                     role: user.role
                 },
@@ -317,8 +320,18 @@ let AuthService = AuthService_1 = class AuthService {
             };
         }
         catch (error) {
-            this.logger.error(`Registration failed for email ${email}:`, error);
-            throw new common_1.BadRequestException('Could not create user');
+            this.logger.error(`Registration failed for email ${email}:`, {
+                error: error.message,
+                stack: error.stack,
+                code: error.code
+            });
+            if (error.code === 11000) {
+                throw new common_1.ConflictException('Email already registered');
+            }
+            if (error.name === 'ValidationError') {
+                throw new common_1.BadRequestException(Object.values(error.errors).map(err => err.message).join(', '));
+            }
+            throw new common_1.BadRequestException(error.message || 'Could not create user');
         }
     }
     async login(loginDto) {
@@ -540,18 +553,29 @@ class RegisterDto {
 }
 exports.RegisterDto = RegisterDto;
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(2, { message: 'Full name must be at least 2 characters long' }),
-    (0, class_validator_1.MaxLength)(50, { message: 'Full name must not exceed 50 characters' }),
-    (0, class_validator_1.Matches)(/^[A-Za-z\s]+$/, { message: 'Full name can only contain letters and spaces' }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'First name is required' }),
+    (0, class_validator_1.IsString)({ message: 'First name must be a string' }),
+    (0, class_validator_1.MinLength)(2, { message: 'First name must be at least 2 characters long' }),
+    (0, class_validator_1.MaxLength)(50, { message: 'First name must not exceed 50 characters' }),
+    (0, class_validator_1.Matches)(/^[A-Za-z\s]+$/, { message: 'First name can only contain letters and spaces' }),
     __metadata("design:type", String)
-], RegisterDto.prototype, "name", void 0);
+], RegisterDto.prototype, "firstName", void 0);
 __decorate([
+    (0, class_validator_1.IsNotEmpty)({ message: 'Last name is required' }),
+    (0, class_validator_1.IsString)({ message: 'Last name must be a string' }),
+    (0, class_validator_1.MinLength)(2, { message: 'Last name must be at least 2 characters long' }),
+    (0, class_validator_1.MaxLength)(50, { message: 'Last name must not exceed 50 characters' }),
+    (0, class_validator_1.Matches)(/^[A-Za-z\s]+$/, { message: 'Last name can only contain letters and spaces' }),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "lastName", void 0);
+__decorate([
+    (0, class_validator_1.IsNotEmpty)({ message: 'Email is required' }),
     (0, class_validator_1.IsEmail)({}, { message: 'Please enter a valid email address' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "email", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Password is required' }),
+    (0, class_validator_1.IsString)({ message: 'Password must be a string' }),
     (0, class_validator_1.MinLength)(8, { message: 'Password must be at least 8 characters long' }),
     (0, class_validator_1.Matches)(/[A-Z]/, { message: 'Password must contain at least one uppercase letter' }),
     (0, class_validator_1.Matches)(/[a-z]/, { message: 'Password must contain at least one lowercase letter' }),
@@ -559,24 +583,45 @@ __decorate([
     __metadata("design:type", String)
 ], RegisterDto.prototype, "password", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Password confirmation is required' }),
+    (0, class_validator_1.IsString)({ message: 'Password confirmation must be a string' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "confirmPassword", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsString)({ message: 'Phone number must be a string' }),
     (0, class_validator_1.Matches)(/^\+?[1-9]\d{1,14}$/, { message: 'Please enter a valid phone number' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "phone", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsBoolean)({ message: 'Subscribe must be a boolean value' }),
     __metadata("design:type", Boolean)
 ], RegisterDto.prototype, "subscribe", void 0);
 __decorate([
-    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsNotEmpty)({ message: 'You must agree to the Terms & Conditions' }),
+    (0, class_validator_1.IsBoolean)({ message: 'Terms agreement must be a boolean value' }),
     __metadata("design:type", Boolean)
 ], RegisterDto.prototype, "agreeToTerms", void 0);
+
+
+/***/ }),
+
+/***/ "./src/auth/enums/user-role.enum.ts":
+/*!******************************************!*\
+  !*** ./src/auth/enums/user-role.enum.ts ***!
+  \******************************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UserRole = void 0;
+var UserRole;
+(function (UserRole) {
+    UserRole["ADMIN"] = "ADMIN";
+    UserRole["CLIENT"] = "CLIENT";
+    UserRole["STAFF"] = "STAFF";
+})(UserRole || (exports.UserRole = UserRole = {}));
 
 
 /***/ }),
@@ -636,16 +681,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a, _b;
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.UserSchema = exports.User = exports.UserRole = void 0;
+exports.UserSchema = exports.User = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-var UserRole;
-(function (UserRole) {
-    UserRole["CLIENT"] = "client";
-    UserRole["ADMIN"] = "admin";
-    UserRole["STAFF"] = "staff";
-})(UserRole || (exports.UserRole = UserRole = {}));
+const user_role_enum_1 = __webpack_require__(/*! ../enums/user-role.enum */ "./src/auth/enums/user-role.enum.ts");
 let User = class User {
     get name() {
         return `${this.firstName} ${this.lastName}`;
@@ -673,13 +713,13 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "phone", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ type: String, enum: user_role_enum_1.UserRole, required: true }),
+    __metadata("design:type", typeof (_a = typeof user_role_enum_1.UserRole !== "undefined" && user_role_enum_1.UserRole) === "function" ? _a : Object)
+], User.prototype, "role", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)
 ], User.prototype, "emailVerified", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ enum: UserRole, default: UserRole.CLIENT }),
-    __metadata("design:type", String)
-], User.prototype, "role", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)
@@ -694,11 +734,11 @@ __decorate([
 ], User.prototype, "resetPasswordToken", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
 ], User.prototype, "resetPasswordExpires", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
-    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
+    __metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
 ], User.prototype, "lastLogout", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: true }),
@@ -710,7 +750,15 @@ __decorate([
     __metadata("design:paramtypes", [])
 ], User.prototype, "name", null);
 exports.User = User = __decorate([
-    (0, mongoose_1.Schema)({ timestamps: true })
+    (0, mongoose_1.Schema)({
+        timestamps: true,
+        toJSON: {
+            transform: (doc, ret) => {
+                delete ret.password;
+                return ret;
+            },
+        },
+    })
 ], User);
 exports.UserSchema = mongoose_1.SchemaFactory.createForClass(User);
 exports.UserSchema.index({ email: 1 }, { unique: true });

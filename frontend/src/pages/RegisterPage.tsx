@@ -11,7 +11,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { authService } from '../services/authService';
 
 interface RegisterFormInputs {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -21,12 +22,19 @@ interface RegisterFormInputs {
 }
 
 const schema = yup.object().shape({
-  name: yup
+  firstName: yup
     .string()
-    .required('Full name is required')
-    .min(2, 'Name must be at least 2 characters')
-    .max(50, 'Name must not exceed 50 characters')
-    .matches(/^[A-Za-z\s]+$/, 'Name can only contain letters'),
+    .required('First name is required')
+    .min(2, 'First name must be at least 2 characters')
+    .max(50, 'First name must not exceed 50 characters')
+    .matches(/^[A-Za-z\s]+$/, 'First name can only contain letters'),
+  
+  lastName: yup
+    .string()
+    .required('Last name is required')
+    .min(2, 'Last name must be at least 2 characters')
+    .max(50, 'Last name must not exceed 50 characters')
+    .matches(/^[A-Za-z\s]+$/, 'Last name can only contain letters'),
   
   email: yup
     .string()
@@ -69,7 +77,8 @@ const RegisterPage = () => {
     try {
       setIsSubmitting(true);
       const registrationData = {
-        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         password: data.password,
         confirmPassword: data.confirmPassword,
@@ -138,22 +147,25 @@ const RegisterPage = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label htmlFor="name" className="sr-only">Full Name</label>
+              <label htmlFor="firstName" className="sr-only">First Name</label>
               <input
-                {...register("name", {
-                  required: "Name is required",
-                  minLength: { value: 2, message: "Name must be at least 2 characters" },
-                  maxLength: { value: 50, message: "Name must not exceed 50 characters" },
-                  pattern: {
-                    value: /^[A-Za-z\s]+$/,
-                    message: "Name can only contain letters"
-                  }
-                })}
+                {...register("firstName")}
                 type="text"
                 className="input"
-                placeholder="Full Name"
+                placeholder="First Name"
               />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+              {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="lastName" className="sr-only">Last Name</label>
+              <input
+                {...register("lastName")}
+                type="text"
+                className="input"
+                placeholder="Last Name"
+              />
+              {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
             </div>
 
             <div>

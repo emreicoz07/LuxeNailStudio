@@ -1,13 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { UserRole } from '../enums/user-role.enum';
 
-export enum UserRole {
-  CLIENT = 'client',
-  ADMIN = 'admin',
-  STAFF = 'staff'
-}
+export type UserDocument = User & Document;
 
-@Schema({ timestamps: true })
+@Schema({
+  timestamps: true,
+  toJSON: {
+    transform: (doc, ret) => {
+      delete ret.password;
+      return ret;
+    },
+  },
+})
 export class User {
   @Prop({ required: true })
   firstName: string;
@@ -24,11 +29,11 @@ export class User {
   @Prop()
   phone?: string;
 
+  @Prop({ type: String, enum: UserRole, required: true })
+  role: UserRole;
+
   @Prop({ default: false })
   emailVerified: boolean;
-
-  @Prop({ enum: UserRole, default: UserRole.CLIENT })
-  role: UserRole;
 
   @Prop({ default: false })
   subscribe: boolean;
@@ -54,7 +59,6 @@ export class User {
   }
 }
 
-export type UserDocument = User & Document;
 export const UserSchema = SchemaFactory.createForClass(User);
 
 // Add indexes for common queries

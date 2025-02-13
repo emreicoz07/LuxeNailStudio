@@ -11,10 +11,12 @@ interface User {
 }
 
 interface RegisterData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone?: string | null;
   password: string;
+  confirmPassword: string;
   subscribe: boolean;
   agreeToTerms: boolean;
 }

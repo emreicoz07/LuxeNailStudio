@@ -9,6 +9,7 @@ import { Logger } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { EmailService } from '../email/email.service';
 import { randomBytes } from 'crypto';
+import { UserRole } from './enums/user-role.enum';
 
 @Injectable()
 export class AuthService {
@@ -21,7 +22,16 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, confirmPassword, name, phone, subscribe, agreeToTerms } = registerDto;
+    const { 
+      email, 
+      password, 
+      confirmPassword, 
+      firstName, 
+      lastName, 
+      phone, 
+      subscribe, 
+      agreeToTerms 
+    } = registerDto;
 
     if (!agreeToTerms) {
       throw new BadRequestException('You must agree to the Terms & Conditions');
@@ -31,22 +41,23 @@ export class AuthService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const existingUser = await this.userModel.findOne({ email });
-    if (existingUser) {
-      throw new ConflictException('Email already registered');
-    }
-
     try {
+      const existingUser = await this.userModel.findOne({ email });
+      if (existingUser) {
+        throw new ConflictException('Email already registered');
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const user = await this.userModel.create({
         email,
         password: hashedPassword,
-        name,
+        firstName,
+        lastName,
         phone,
         subscribe: subscribe || false,
         agreeToTerms,
-        role: 'user',
+        role: UserRole.CLIENT,
         emailVerified: false
       });
 
@@ -56,10 +67,9 @@ export class AuthService {
         role: user.role
       });
 
-      // Send welcome email
-      await this.emailService.sendWelcomeEmail(email, name)
+      // Send welcome email but don't wait for it
+      this.emailService.sendWelcomeEmail(email, `${firstName} ${lastName}`)
         .catch(error => {
-          // Log error but don't fail registration
           this.logger.error('Failed to send welcome email:', error);
         });
 
@@ -69,15 +79,33 @@ export class AuthService {
         user: {
           id: user._id,
           email: user.email,
-          name: user.name,
+          firstName: user.firstName,
+          lastName: user.lastName,
           phone: user.phone,
           role: user.role
         },
         token
       };
     } catch (error) {
-      this.logger.error(`Registration failed for email ${email}:`, error);
-      throw new BadRequestException('Could not create user');
+      // Improved error logging
+      this.logger.error(`Registration failed for email ${email}:`, {
+        error: error.message,
+        stack: error.stack,
+        code: error.code
+      });
+
+      // Handle MongoDB duplicate key error
+      if (error.code === 11000) {
+        throw new ConflictException('Email already registered');
+      }
+
+      // Handle validation errors
+      if (error.name === 'ValidationError') {
+        throw new BadRequestException(Object.values(error.errors).map(err => err.message).join(', '));
+      }
+
+      // Handle other errors
+      throw new BadRequestException(error.message || 'Could not create user');
     }
   }
 
