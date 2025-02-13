@@ -3,7 +3,7 @@ import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 import { User } from '../auth/schemas/user.schema';
 import { Service } from './service.schema';
 import { AddOn } from './addon.schema';
-import { PaymentStatus } from '../dto/create-booking.dto';
+import { PaymentStatus } from '../bookings/enums/payment-status.enum';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
 
 export interface BookingDocument extends Document {

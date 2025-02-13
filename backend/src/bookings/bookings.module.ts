@@ -13,7 +13,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
 import { ServicesSeedService } from './seeds/services.seed';
-import { SeedServicesCommand } from './commands/seed.command';
+import { SeedCommand } from './commands/seed.command';
+import { AddOnsSeeder } from './seeds/addons.seed';
 
 @Module({
   imports: [
@@ -31,7 +32,25 @@ import { SeedServicesCommand } from './commands/seed.command';
     ScheduleModule.forRoot(),
   ],
   controllers: [BookingsController],
-  providers: [BookingsService, ServicesSeedService, SeedServicesCommand],
+  providers: [
+    BookingsService,
+    ServicesSeedService,
+    AddOnsSeeder,
+    SeedCommand,
+    {
+      provide: 'SEED_DATA',
+      useFactory: async (servicesSeedService: ServicesSeedService, addOnsSeeder: AddOnsSeeder) => {
+        try {
+          await servicesSeedService.seed();
+          await addOnsSeeder.seed();
+          console.log('Data seeding completed successfully');
+        } catch (error) {
+          console.error('Error seeding data:', error);
+        }
+      },
+      inject: [ServicesSeedService, AddOnsSeeder],
+    },
+  ],
   exports: [BookingsService]
 })
 export class BookingsModule {} 

@@ -6,25 +6,44 @@ import {
   Body, 
   Param, 
   UseGuards,
-  Request 
+  Request,
+  NotFoundException,
+  Logger
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { StripeService } from '../stripe/stripe.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RequestWithUser } from '../auth/interfaces/auth.interface';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Service, ServiceDocument } from './schemas/service.schema';
 
-@Controller('api/bookings')
+@Controller('bookings')
 @UseGuards(JwtAuthGuard)
 export class BookingsController {
+  private readonly logger = new Logger(BookingsController.name);
+
   constructor(
     private readonly bookingsService: BookingsService,
-    private readonly stripeService: StripeService
+    private readonly stripeService: StripeService,
+    @InjectModel(Service.name) private serviceModel: Model<ServiceDocument>
   ) {}
 
   @Post()
   async create(@Body() createBookingDto: CreateBookingDto, @Request() req: RequestWithUser) {
-    return this.bookingsService.create(createBookingDto, req.user);
+    try {
+      this.logger.debug(`Creating booking with service ID: ${createBookingDto.serviceId}`);
+      // Verify service exists before creating booking
+      const service = await this.serviceModel.findById(createBookingDto.serviceId);
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+      return await this.bookingsService.create(createBookingDto, req.user);
+    } catch (error) {
+      this.logger.error(`Error creating booking: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   @Get(':id')
@@ -42,5 +61,19 @@ export class BookingsController {
     }
     
     return booking;
+  }
+
+  @Get('service/:id/status')
+  async checkServiceStatus(@Param('id') serviceId: string) {
+    const service = await this.serviceModel.findById(serviceId);
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+    return {
+      id: service._id,
+      name: service.name,
+      isActive: service.isActive,
+      exists: true
+    };
   }
 } 

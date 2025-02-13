@@ -8,9 +8,10 @@ import { HiOutlineCalendar, HiOutlineClock, HiOutlineCash } from 'react-icons/hi
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useMutation } from '@tanstack/react-query';
-import { bookingApi } from '../../api/bookingApi';
+import { bookingApi, CreateBookingData } from '../../api/bookingApi';
 import { useAuth } from '../../hooks/useAuth';
 import { z } from 'zod';
+import { config } from '../../config';
 
 type BookingStep = 'category' | 'service' | 'datetime' | 'summary';
 
@@ -41,7 +42,7 @@ interface BookingSummary {
 
 const bookingValidationSchema = z.object({
   serviceId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid service ID format"),
-  addOnIds: z.array(z.string()).optional(),
+  addOnIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid add-on ID format")).optional(),
   appointmentDate: z.string().datetime("Invalid date and time"),
   amount: z.number().min(0, "Amount must be positive"),
   depositAmount: z.number().min(0, "Deposit amount must be positive").optional(),
@@ -93,6 +94,7 @@ const BookingPage: React.FC = () => {
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const addOnsSectionRef = useRef<HTMLDivElement>(null);
   const dateSelectionRef = useRef<HTMLDivElement>(null);
+  const [bookingNotes, setBookingNotes] = useState('');
 
   const categories = [
     {
@@ -466,33 +468,31 @@ const BookingPage: React.FC = () => {
   };
 
   const createBookingMutation = useMutation({
-    mutationFn: bookingApi.createBooking,
-    onSuccess: () => {
-      toast.success('Booking confirmed successfully!');
-      navigate('/appointments');
-    },
-    onError: (error: ApiError) => {
-      if (error.errors) {
-        setValidationErrors(
-          Object.fromEntries(
-            Object.entries(error.errors).map(([key, messages]) => [key, messages[0]])
-          )
-        );
-        toast.error('Please check the booking details and try again.');
+    mutationFn: (bookingData: any) => bookingApi.createBooking(bookingData),
+    onError: (error: any) => {
+      if (error.response?.data?.errors) {
+        setValidationErrors(error.response.data.errors);
       } else {
-        toast.error(error.message || 'Failed to create booking. Please try again.');
+        toast.error(error.response?.data?.message || 'Failed to create booking');
       }
     }
   });
 
-  const calculateTotalPrice = () => {
-    const mainService = mainServices.find(service => service.id === selectedService);
-    const addOnsTotal = selectedAddOns.reduce((total, addOnId) => {
+  const calculateTotalPrice = (): number => {
+    const mainService = getSelectedService();
+    if (!mainService) return 0;
+
+    let total = mainService.price;
+
+    // Add prices of selected add-ons
+    selectedAddOns.forEach(addOnId => {
       const addOn = serviceAddOns.find(addon => addon.id === addOnId);
-      return total + (addOn?.price || 0);
-    }, 0);
-    
-    return (mainService?.price || 0) + addOnsTotal;
+      if (addOn) {
+        total += addOn.price;
+      }
+    });
+
+    return total;
   };
 
   const calculateDepositAmount = () => {
@@ -506,37 +506,70 @@ const BookingPage: React.FC = () => {
   const handleBookingSubmit = async () => {
     try {
       if (!isAuthenticated) {
-        navigate('/login', { state: { from: '/booking' } });
+        toast.error('Please login to make a booking');
+        navigate('/login');
         return;
       }
 
       const selectedServiceData = getSelectedService();
-      if (!selectedServiceData || !selectedDate || !selectedTime) {
-        throw new Error('Please select all required booking details');
+      if (!selectedServiceData) {
+        toast.error('Please select a service');
+        return;
       }
 
-      const appointmentDateTime = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(':');
-      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      // Parse time string and create Date object
+      const timeMatch = selectedTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (!timeMatch) {
+        toast.error('Invalid time format');
+        return;
+      }
+
+      let [_, hours, minutes, period] = timeMatch;
+      let hour = parseInt(hours);
+      
+      // Convert to 24-hour format
+      if (period.toUpperCase() === 'PM' && hour !== 12) {
+        hour += 12;
+      } else if (period.toUpperCase() === 'AM' && hour === 12) {
+        hour = 0;
+      }
+
+      const appointmentDate = new Date(selectedDate);
+      appointmentDate.setHours(hour, parseInt(minutes), 0, 0);
 
       const bookingData = {
         serviceId: selectedServiceData.id,
-        addOnIds: selectedAddOns, // Include selected add-ons
-        appointmentDate: appointmentDateTime.toISOString(),
-        amount: calculateTotalPrice(), // Make sure this includes add-ons
+        addOnIds: selectedAddOns,
+        appointmentDate: appointmentDate.toISOString(),
+        amount: calculateTotalPrice(),
         depositAmount: selectedServiceData.depositRequired ? selectedServiceData.depositAmount : undefined,
-        notes: '', // Add notes if you have them
+        notes: bookingNotes,
+        paymentStatus: 'UNPAID'
       };
 
-      // Validate the data before submission
-      const validatedData = bookingValidationSchema.parse(bookingData);
-      await createBookingMutation.mutateAsync(validatedData);
+      // Validate booking data
+      const validationResult = bookingValidationSchema.safeParse(bookingData);
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {};
+        validationResult.error.errors.forEach((err) => {
+          errors[err.path[0]] = err.message;
+        });
+        setValidationErrors(errors);
+        return;
+      }
+
+      setIsSubmitting(true);
+      const result = await createBookingMutation.mutateAsync(bookingData);
       
-      // Handle successful booking
-      toast.success('Booking confirmed successfully!');
-      navigate('/appointments');
+      if (result) {
+        toast.success('Booking created successfully!');
+        navigate('/bookings');
+      }
     } catch (error) {
-      // Error handling...
+      console.error('Booking submission error:', error);
+      toast.error('Failed to create booking. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -950,6 +983,21 @@ const BookingPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+                    Additional Notes
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    rows={3}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    placeholder="Any special requests or notes for your appointment..."
+                    value={bookingNotes}
+                    onChange={(e) => setBookingNotes(e.target.value)}
+                  />
                 </div>
               </div>
 

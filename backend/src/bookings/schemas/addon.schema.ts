@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
-export type AddOnDocument = AddOn & Document;
+export type AddOnDocument = AddOn & Document & { _id: Types.ObjectId };
 
 @Schema({ timestamps: true })
-export class AddOn extends Document {
+export class AddOn {
   @Prop({ required: true })
   name: string;
 
@@ -19,6 +19,12 @@ export class AddOn extends Document {
 
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop({ required: true, default: 'general' })
+  category: string;
 }
 
-export const AddOnSchema = SchemaFactory.createForClass(AddOn); 
+export const AddOnSchema = SchemaFactory.createForClass(AddOn);
+
+AddOnSchema.index({ category: 1 });
+AddOnSchema.index({ isActive: 1 }); 

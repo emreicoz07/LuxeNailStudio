@@ -7,6 +7,8 @@ import { BookingsModule } from './bookings/bookings.module';
 import { StripeModule } from './stripe/stripe.module';
 import { EmailModule } from './email/email.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import * as mongoose from 'mongoose';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -18,17 +20,30 @@ import { ScheduleModule } from '@nestjs/schedule';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const uri = configService.get<string>('MONGODB_URI');
+        if (!uri) {
+          throw new Error('MONGODB_URI is not defined');
+        }
+
         const options = {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
           retryWrites: true,
           dbName: 'nail-studio',
         };
         
-        Logger.log(`Attempting to connect to MongoDB nail-studio database`);
+        try {
+          const connection = await mongoose.connect(uri, options);
+          Logger.log('Successfully connected to MongoDB');
+          
+          if (connection.connection.db) {
+            const collections = await connection.connection.db.listCollections().toArray();
+            Logger.log(`Available collections: ${collections.map(c => c.name).join(', ')}`);
+          }
+        } catch (error) {
+          Logger.error(`Failed to connect to MongoDB: ${error.message}`);
+          throw error;
+        }
         
         return {
-          uri: uri || 'mongodb://localhost:27017/nail-studio',
+          uri,
           ...options
         };
       },
@@ -40,7 +55,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     StripeModule,
     EmailModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {} 

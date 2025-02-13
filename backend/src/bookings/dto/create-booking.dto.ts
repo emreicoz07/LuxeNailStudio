@@ -1,12 +1,6 @@
-import { IsString, IsDate, IsNumber, IsOptional, IsArray, Min, IsEnum, IsMongoId } from 'class-validator';
+import { IsMongoId, IsArray, IsOptional, IsDate, IsNumber, Min, IsString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
-
-export enum PaymentStatus {
-  PAID = 'PAID',
-  UNPAID = 'UNPAID',
-  REFUNDED = 'REFUNDED',
-  FAILED = 'FAILED'
-}
+import { PaymentStatus } from '../enums/payment-status.enum';
 
 export class CreateBookingDto {
   @IsMongoId()
@@ -34,11 +28,7 @@ export class CreateBookingDto {
   @IsOptional()
   notes?: string;
 
-  @IsString()
-  @IsOptional()
-  paymentId?: string;
-
-  @IsOptional()
   @IsEnum(PaymentStatus)
-  paymentStatus?: PaymentStatus = PaymentStatus.UNPAID;
+  @IsOptional()
+  paymentStatus?: PaymentStatus;
 } 

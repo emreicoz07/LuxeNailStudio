@@ -7,6 +7,8 @@ import * as path from 'path';
 import { format } from 'date-fns';
 import { BookingDocument, BookingStatus } from '../bookings/schemas/booking.schema';
 import { addDays, subHours } from 'date-fns';
+import { Booking, Service, AddOn, UserFromRequest } from '../bookings/interfaces';
+import { BookingConfirmationEmailData } from './interfaces/email.interface';
 
 @Injectable()
 export class EmailService {
@@ -133,6 +135,7 @@ export class EmailService {
       status: string;
       paymentStatus: string;
       serviceName: string;
+      notes?: string;
     };
   }): Promise<void> {
     const { email, name, bookingDetails } = params;
@@ -150,6 +153,7 @@ export class EmailService {
         depositAmount: bookingDetails.depositAmount.toFixed(2),
         remainingBalance: (bookingDetails.totalAmount - bookingDetails.depositAmount).toFixed(2),
         paymentStatus: bookingDetails.paymentStatus,
+        notes: bookingDetails.notes,
         businessAddress: this.configService.get<string>('BUSINESS_ADDRESS'),
         phoneNumber: this.configService.get<string>('BUSINESS_PHONE'),
         managementUrl: `${this.configService.get<string>('FRONTEND_URL')}/appointments/${bookingDetails.id}`,
@@ -228,5 +232,54 @@ export class EmailService {
       this.logger.error(`Failed to send cancellation email:`, error);
       throw error;
     }
+  }
+
+  private async sendMail(options: { to: string; subject: string; html: string }): Promise<void> {
+    await this.transporter.sendMail({
+      from: `"${this.configService.get<string>('WEBSITE_NAME')}" <${this.configService.get('GMAIL_USER')}>`,
+      ...options
+    });
+  }
+
+  async sendBookingConfirmation(params: BookingConfirmationEmailData): Promise<void> {
+    const { email, name, bookingDetails } = params;
+    
+    const addOnsHtml = bookingDetails.addOnServices?.length
+      ? `
+        <h3>Selected Add-ons:</h3>
+        <ul>
+          ${bookingDetails.addOnServices.map((addOn: { name: string; price: number }) => `
+            <li>
+              <strong>${addOn.name}</strong> - $${addOn.price.toFixed(2)}
+            </li>
+          `).join('')}
+        </ul>
+        <p><strong>Add-ons Total:</strong> $${bookingDetails.addOnServices.reduce((sum: number, addOn: { price: number }) => sum + addOn.price, 0).toFixed(2)}</p>
+      `
+      : '';
+
+    const html = `
+      <h2>Booking Confirmation</h2>
+      <p>Dear ${name},</p>
+      <p>Your booking has been confirmed for the following service:</p>
+      
+      <h3>Service Details:</h3>
+      <p>
+        <strong>${bookingDetails.serviceName}</strong>
+      </p>
+      
+      ${addOnsHtml}
+      
+      <p><strong>Total Amount:</strong> $${bookingDetails.totalAmount.toFixed(2)}</p>
+      <p><strong>Date & Time:</strong> ${bookingDetails.dateTime.toLocaleString()}</p>
+      
+      <p>Thank you for choosing our services!</p>
+    `;
+
+    await this.sendMail({
+      to: email,
+      subject: 'Booking Confirmation',
+      html
+    });
   }
 } 

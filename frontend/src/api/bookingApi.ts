@@ -1,8 +1,8 @@
 import axios from 'axios';
-import config from '../config/config';
+import { config } from '../config';
 
 const api = axios.create({
-  baseURL: `${config.apiUrl}/api/bookings`,
+  baseURL: `${config.apiUrl}/bookings`,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-interface CreateBookingData {
+export interface CreateBookingData {
   serviceId: string;
   addOnIds?: string[];
   appointmentDate: string;
@@ -38,6 +38,7 @@ export const bookingApi = {
         ...data,
         appointmentDate: new Date(data.appointmentDate).toISOString(),
         addOnIds: data.addOnIds || [],
+        paymentStatus: 'UNPAID'
       };
 
       console.log('Sending booking request:', formattedData);
@@ -48,7 +49,7 @@ export const bookingApi = {
       console.error('Booking error:', error);
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 404) {
-          throw new Error('Booking service not found. Please try again later.');
+          throw new Error('Service not found. Please check if the service is still available.');
         }
         throw {
           message: error.response?.data?.message || 'Failed to create booking',
