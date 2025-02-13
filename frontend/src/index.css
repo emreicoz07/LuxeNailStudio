@@ -80,4 +80,18 @@
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* Add a highlight animation */
+@keyframes highlightSection {
+  0% {
+    background-color: rgba(255, 143, 195, 0.1); /* Light pink based on your theme */
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.highlight-section {
+  animation: highlightSection 1.5s ease-out;
 } 

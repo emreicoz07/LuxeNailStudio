@@ -92,6 +92,7 @@ const BookingPage: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const addOnsSectionRef = useRef<HTMLDivElement>(null);
+  const dateSelectionRef = useRef<HTMLDivElement>(null);
 
   const categories = [
     {
@@ -539,6 +540,15 @@ const BookingPage: React.FC = () => {
     }
   };
 
+  const handleContinueToDateTime = () => {
+    setCurrentStep('datetime');
+    // Scroll to top with smooth behavior
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   return (
     <Section className="pt-20 min-h-screen">
       <div className="mx-auto max-w-4xl">
@@ -605,7 +615,7 @@ const BookingPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-8 relative"
+              className="relative space-y-8"
             >
               <div className="flex items-center mb-8">
                 <button
@@ -633,10 +643,10 @@ const BookingPage: React.FC = () => {
                       <div className="space-y-2">
                         <div className="flex justify-between items-start">
                           <h3 className="font-semibold">{service.title}</h3>
-                          <span className="text-primary-600 font-semibold">€{service.price}</span>
+                          <span className="font-semibold text-primary-600">€{service.price}</span>
                         </div>
                         <p className="text-sm text-gray-600">{service.description}</p>
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        <div className="flex justify-between items-center text-sm text-gray-500">
                           <span>Duration: {service.duration}</span>
                           {service.depositRequired && (
                             <span className="text-primary-600">
@@ -657,14 +667,14 @@ const BookingPage: React.FC = () => {
               {selectedService && filteredAddOns.length > 0 && (
                 <div 
                   ref={addOnsSectionRef}
-                  className="space-y-6 mt-8 add-ons-section scroll-mt-24"
+                  className="mt-8 space-y-6 add-ons-section scroll-mt-24"
                 >
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex justify-between items-center mb-6">
                       <h2 className="text-2xl font-semibold">Optional Add-ons</h2>
                       {selectedAddOns.length > 0 && (
                         <button
@@ -733,10 +743,9 @@ const BookingPage: React.FC = () => {
                   Back
                 </button>
                 <button
-                  onClick={() => setCurrentStep('datetime')}
+                  onClick={handleContinueToDateTime}
                   disabled={!selectedService}
-                  className="px-6 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50
-                    hover:bg-primary-700 transition-colors duration-200"
+                  className="px-6 py-2 text-white rounded-lg transition-colors duration-200 bg-primary-600 disabled:opacity-50 hover:bg-primary-700"
                 >
                   Continue
                 </button>
@@ -764,7 +773,7 @@ const BookingPage: React.FC = () => {
               </div>
 
               {/* Date Selection */}
-              <div className="space-y-4">
+              <div ref={dateSelectionRef} className="space-y-4">
                 <h2 className="flex items-center text-xl font-semibold">
                   <HiOutlineCalendar className="mr-2 w-5 h-5" />
                   Select Date
@@ -864,11 +873,11 @@ const BookingPage: React.FC = () => {
                 </h1>
               </div>
 
-              <div className="bg-white rounded-xl border-2 border-gray-100 p-6 space-y-6">
+              <div className="p-6 space-y-6 bg-white rounded-xl border-2 border-gray-100">
                 {/* Service Details */}
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold">Selected Service</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <p className="text-gray-600">Category</p>
                       <p className="font-semibold">
@@ -885,7 +894,7 @@ const BookingPage: React.FC = () => {
                 {/* Date & Time */}
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold">Appointment Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="flex items-center space-x-3">
                       <HiOutlineCalendar className="w-5 h-5 text-gray-400" />
                       <div>
@@ -934,8 +943,8 @@ const BookingPage: React.FC = () => {
                       </div>
                     )}
                     
-                    <div className="border-t border-gray-200 pt-3">
-                      <div className="flex justify-between items-center font-semibold text-lg">
+                    <div className="pt-3 border-t border-gray-200">
+                      <div className="flex justify-between items-center text-lg font-semibold">
                         <span>Total</span>
                         <span>€{calculateTotalPrice()}</span>
                       </div>
@@ -945,7 +954,7 @@ const BookingPage: React.FC = () => {
               </div>
 
               {/* Terms and Conditions */}
-              <div className="bg-primary-50 rounded-lg p-4 text-sm text-gray-600">
+              <div className="p-4 text-sm text-gray-600 rounded-lg bg-primary-50">
                 <p>
                   By confirming this booking, you agree to our{' '}
                   <a href="/terms" className="text-primary-500 hover:text-primary-600">
@@ -957,8 +966,8 @@ const BookingPage: React.FC = () => {
 
               {/* Validation Errors */}
               {Object.keys(validationErrors).length > 0 && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 text-sm text-red-600">
-                  <h3 className="font-semibold mb-2">Please correct the following errors:</h3>
+                <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg border-2 border-red-200">
+                  <h3 className="mb-2 font-semibold">Please correct the following errors:</h3>
                   <ul className="list-disc list-inside">
                     {Object.entries(validationErrors).map(([field, message]) => (
                       <li key={field}>{message}</li>
@@ -972,12 +981,11 @@ const BookingPage: React.FC = () => {
                 <button
                   onClick={handleBookingSubmit}
                   disabled={createBookingMutation.isPending || Object.keys(validationErrors).length > 0}
-                  className="px-6 py-3 rounded-lg font-semibold text-white bg-primary-500 hover:bg-primary-600 
-                    transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 font-semibold text-white rounded-lg transition-colors bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {createBookingMutation.isPending ? (
                     <span className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" 
+                      <svg className="mr-3 -ml-1 w-5 h-5 text-white animate-spin" 
                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" 
                           stroke="currentColor" strokeWidth="4"></circle>
