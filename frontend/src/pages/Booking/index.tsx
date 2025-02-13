@@ -122,10 +122,18 @@ const BookingPage: React.FC = () => {
 
   useEffect(() => {
     if (addonsData) {
-      console.log('Setting addons:', addonsData);
-      setAddOns(addonsData);
+      // Transform the data to ensure it matches the Service interface
+      const transformedAddons = addonsData.map((addon: any) => ({
+        id: addon._id || addon.id, // Handle both MongoDB _id and regular id
+        name: addon.name,
+        description: addon.description || '',
+        duration: addon.duration,
+        price: addon.price,
+        category: addon.category || '',
+        imageUrl: addon.imageUrl
+      }));
+      setAddOns(transformedAddons);
     } else {
-      // Eğer addonsData null ise add-ons listesini temizle
       setAddOns([]);
     }
   }, [addonsData, selectedService]);
