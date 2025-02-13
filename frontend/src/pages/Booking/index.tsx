@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Section from '../../components/common/Section';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSpa } from 'react-icons/fa';
@@ -83,6 +83,7 @@ const BookingPage: React.FC = () => {
   const { isAuthenticated,} = useAuth();
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [addOns, setAddOns] = useState<Service[]>([]);
   const addOnsSectionRef = useRef<HTMLDivElement>(null);
   const dateSelectionRef = useRef<HTMLDivElement>(null);
   const [bookingNotes, setBookingNotes] = useState('');
@@ -113,11 +114,21 @@ const BookingPage: React.FC = () => {
     staleTime: 5 * 60 * 1000 // Cache for 5 minutes
   });
 
-  const { data: addOns, isLoading: isLoadingAddOns } = useQuery({
-    queryKey: ['addOns', selectedService],
-    queryFn: () => bookingApi.getAddOns(selectedService),
-    enabled: !!selectedService
+  const { data: addonsData, isLoading: isLoadingAddOns } = useQuery({
+    queryKey: ['addons', selectedService],
+    queryFn: () => selectedService ? bookingApi.getAddOns(selectedService) : Promise.resolve([]),
+    enabled: !!selectedService,
   });
+
+  useEffect(() => {
+    if (addonsData) {
+      console.log('Setting addons:', addonsData);
+      setAddOns(addonsData);
+    } else {
+      // Eğer addonsData null ise add-ons listesini temizle
+      setAddOns([]);
+    }
+  }, [addonsData, selectedService]);
 
   const getSelectedService = (): Service | undefined => {
     if (!services) return undefined;
@@ -130,16 +141,24 @@ const BookingPage: React.FC = () => {
   };
 
   const handleServiceSelect = (serviceId: string) => {
+    // Eğer aynı servis tekrar seçilirse seçimi kaldır
     if (selectedService === serviceId) {
       setSelectedService('');
+      setAddOns([]); // Add-ons listesini temizle
+      setSelectedAddOns([]); // Seçili add-onları temizle
     } else {
       setSelectedService(serviceId);
+      setSelectedAddOns([]); // Yeni servis seçildiğinde seçili add-onları temizle
     }
-    setSelectedAddOns([]);
   };
-  const filteredAddOns = addOns?.filter(
-    (addon: Service) => addon.category === selectedCategory || addon.category === 'both'
-  ) || [];
+
+  const filteredAddOns = useMemo(() => {
+    if (!selectedService || !addOns) return [];
+    
+    // No need to filter by category since the backend already handles this
+    // Just return all addons returned from the API
+    return addOns;
+  }, [selectedService, addOns]);
 
   const generateTimeSlots = (selectedDate: Date): TimeSlot[] => {
     const slots: TimeSlot[] = [];
@@ -183,17 +202,20 @@ const BookingPage: React.FC = () => {
     }
   });
 
-  const calculateTotalPrice = (): number => {
-    const mainService = getSelectedService();
-    if (!mainService) return 0;
+  const calculateTotalPrice = () => {
+    let total = 0;
 
-    let total = mainService.price;
+    // Add service price
+    const selectedServiceData = services?.find(s => s.id === selectedService);
+    if (selectedServiceData) {
+      total += selectedServiceData.price;
+    }
 
-    // Add prices of selected add-ons
+    // Add selected add-ons prices
     selectedAddOns.forEach(addOnId => {
-      const addOn = addOns?.find((addon: { id: string; price: number }) => addon.id === addOnId);
-      if (addOn) {
-        total += addOn.price;
+      const addon = addOns.find(a => a.id === addOnId);
+      if (addon) {
+        total += addon.price;
       }
     });
 
@@ -419,94 +441,87 @@ const BookingPage: React.FC = () => {
                 <ScrollIndicator />
               )}
 
-              {selectedService && filteredAddOns.length > 0 && (
-                <div 
-                  ref={addOnsSectionRef}
-                  className="mt-8 space-y-6 add-ons-section scroll-mt-24"
-                >
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-2xl font-semibold">Optional Add-ons</h2>
-                      {selectedAddOns.length > 0 && (
-                        <button
-                          onClick={() => setSelectedAddOns([])}
-                          className="text-sm text-primary-600 hover:text-primary-700"
-                        >
-                          Clear all
-                        </button>
-                      )}
+              {selectedService && (
+                <>
+                  {isLoadingAddOns ? (
+                    <div className="flex justify-center mt-8">
+                      <div className="w-12 h-12 rounded-full border-b-2 animate-spin border-primary-500" />
                     </div>
-                    
-                    <motion.div 
-                      className="grid gap-4 md:grid-cols-3"
-                      initial="hidden"
-                      animate="visible"
-                      variants={{
-                        visible: {
-                          transition: {
-                            staggerChildren: 0.1
-                          }
-                        }
-                      }}
+                  ) : filteredAddOns.length > 0 ? (
+                    <div 
+                      ref={addOnsSectionRef}
+                      className="mt-8 space-y-6 add-ons-section scroll-mt-24"
                     >
-                      {isLoadingAddOns ? (
-                        <div className="flex justify-center">
-                          <div className="w-12 h-12 rounded-full border-b-2 animate-spin border-primary-500" />
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-2xl font-semibold">Optional Add-ons</h2>
+                          {selectedAddOns.length > 0 && (
+                            <button
+                              onClick={() => setSelectedAddOns([])}
+                              className="text-sm text-primary-600 hover:text-primary-700"
+                            >
+                              Clear all
+                            </button>
+                          )}
                         </div>
-                      ) : (
-                        addOns?.map((addon: {
-                          id: string;
-                          name: string;
-                          price: number;
-                          description: string;
-                          duration: number;
-                        }) => (
-                          <motion.button
-                            key={addon.id}
-                            variants={{
-                              hidden: { opacity: 0, y: 20 },
-                              visible: { opacity: 1, y: 0 }
-                            }}
-                            onClick={() => handleAddOnSelect(addon.id)}
-                            className={`p-4 text-left rounded-lg border-2 transition-all duration-300
-                              ${selectedAddOns.includes(addon.id)
-                                ? 'border-primary-500 bg-primary-50'
-                                : 'border-gray-200 hover:border-primary-200 bg-white'}`}
-                          >
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-start">
-                                <h3 className="font-semibold">{addon.name}</h3>
-                                <span className="text-primary-600">€{addon.price}</span>
+                        
+                        <motion.div 
+                          className="grid gap-4 md:grid-cols-3"
+                          initial="hidden"
+                          animate="visible"
+                          variants={{
+                            visible: {
+                              transition: {
+                                staggerChildren: 0.1
+                              }
+                            }
+                          }}
+                        >
+                          {filteredAddOns.map((addon) => (
+                            <motion.button
+                              key={addon.id}
+                              variants={{
+                                hidden: { opacity: 0, y: 20 },
+                                visible: { opacity: 1, y: 0 }
+                              }}
+                              onClick={() => handleAddOnSelect(addon.id)}
+                              className={`p-4 text-left rounded-lg border-2 transition-all duration-300
+                                ${selectedAddOns.includes(addon.id)
+                                  ? 'border-primary-500 bg-primary-50'
+                                  : 'border-gray-200 hover:border-primary-200 bg-white'}`}
+                            >
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <h3 className="font-semibold">{addon.name}</h3>
+                                  <span className="text-primary-600">€{addon.price}</span>
+                                </div>
+                                <p className="text-sm text-gray-600">{addon.description}</p>
+                                <div className="text-sm text-gray-500">
+                                  Duration: {addon.duration} minutes
+                                </div>
                               </div>
-                              <p className="text-sm text-gray-600">{addon.description}</p>
-                              <div className="text-sm text-gray-500">
-                                Duration: {addon.duration} minutes
-                              </div>
-                            </div>
-                          </motion.button>
-                        ))
-                      )}
-                    </motion.div>
-                  </motion.div>
-                </div>
+                            </motion.button>
+                          ))}
+                        </motion.div>
+                      </motion.div>
+                    </div>
+                  ) : null}
+                </>
               )}
 
-              {/* Navigation Buttons */}
-              <div className="flex justify-between mt-8">
-                <button
-                  onClick={() => setCurrentStep('category')}
-                  className="px-6 py-2 text-primary-600 hover:text-primary-700"
-                >
-                  Back
-                </button>
+              {/* Continue Button */}
+              <div className="flex justify-end mt-8">
                 <button
                   onClick={handleContinueToDateTime}
-                  disabled={!selectedService || selectedService === ''}
-                  className="px-6 py-2 text-white rounded-lg transition-colors duration-200 bg-primary-600 disabled:opacity-50 hover:bg-primary-700"
+                  disabled={!selectedService}
+                  className={`px-6 py-2 rounded-lg transition-colors
+                    ${selectedService
+                      ? 'text-white bg-primary-600 hover:bg-primary-700'
+                      : 'text-gray-500 bg-gray-200 cursor-not-allowed'}`}
                 >
                   Continue
                 </button>
@@ -615,7 +630,7 @@ const BookingPage: React.FC = () => {
             </motion.div>
           )}
 
-          {currentStep === 'summary' && selectedService && (
+          {currentStep === 'summary' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -634,147 +649,112 @@ const BookingPage: React.FC = () => {
                 </h1>
               </div>
 
-              <div className="p-6 space-y-6 bg-white rounded-xl border-2 border-gray-100">
-                {/* Service Details */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Selected Service</h2>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <p className="text-gray-600">Category</p>
-                      <p className="font-semibold">
-                        {categories.find(cat => cat.id === selectedCategory)?.title}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-gray-600">Service</p>
-                      <p className="font-semibold">{getSelectedService()?.name}</p>
-                    </div>
+              <div className="p-6 space-y-6 bg-white rounded-lg shadow-sm">
+                {/* Selected Service */}
+                <div>
+                  <h2 className="mb-4 text-xl font-semibold">Selected Service</h2>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    {getSelectedService() && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <h3 className="font-medium">{getSelectedService()?.name}</h3>
+                          <span className="text-primary-600">€{getSelectedService()?.price}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{getSelectedService()?.description}</p>
+                        <div className="text-sm text-gray-500">
+                          Duration: {getSelectedService()?.duration} minutes
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Date & Time */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Appointment Details</h2>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="flex items-center space-x-3">
-                      <HiOutlineCalendar className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-gray-600">Date</p>
-                        <p className="font-semibold">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <HiOutlineClock className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-gray-600">Time</p>
-                        <p className="font-semibold">{selectedTime}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Price Details */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Price Details</h2>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Main Service</span>
-                      <span className="font-semibold">€{getSelectedService()?.price}</span>
-                    </div>
-                    
-                    {selectedAddOns.length > 0 && (
-                      <>
-                        <div className="text-gray-600">Add-ons:</div>
-                        {selectedAddOns.map(addOnId => {
-                          const addOn = addOns?.find((addon: { id: string }) => addon.id === addOnId);
-                          return (
-                            <div key={addOnId} className="flex justify-between items-center pl-4">
-                              <span className="text-gray-600">{addOn?.name}</span>
-                              <span className="font-semibold">€{addOn?.price}</span>
+                {/* Selected Add-ons */}
+                {selectedAddOns.length > 0 && (
+                  <div>
+                    <h2 className="mb-4 text-xl font-semibold">Selected Add-ons</h2>
+                    <div className="space-y-3">
+                      {selectedAddOns.map(addonId => {
+                        const addon = addOns?.find((a: Service) => a.id === addonId);
+                        return addon ? (
+                          <div key={addon.id} className="p-4 bg-gray-50 rounded-lg">
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <h3 className="font-medium">{addon.name}</h3>
+                                <span className="text-primary-600">€{addon.price}</span>
+                              </div>
+                              <p className="text-sm text-gray-600">{addon.description}</p>
+                              <div className="text-sm text-gray-500">
+                                Duration: {addon.duration} minutes
+                              </div>
                             </div>
-                          );
-                        })}
-                      </>
-                    )}
-                    
-                    {typeof getSelectedService()?.deposit === 'number' && (
-                      <div className="flex justify-between items-center text-primary-600">
-                        <span>Required Deposit</span>
-                        <span className="font-semibold">€{getSelectedService()?.deposit}</span>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Date and Time */}
+                <div>
+                  <h2 className="mb-4 text-xl font-semibold">Appointment Time</h2>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <HiOutlineCalendar className="w-5 h-5 text-gray-500" />
+                        <span>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
                       </div>
-                    )}
-                    
-                    <div className="pt-3 border-t border-gray-200">
-                      <div className="flex justify-between items-center text-lg font-semibold">
-                        <span>Total</span>
-                        <span>€{calculateTotalPrice()}</span>
+                      <div className="flex items-center space-x-2">
+                        <HiOutlineClock className="w-5 h-5 text-gray-500" />
+                        <span>{selectedTime}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-                    Additional Notes
-                  </label>
+                {/* Total Price */}
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center text-lg font-semibold">
+                    <span>Total Price:</span>
+                    <span className="text-primary-600">€{calculateTotalPrice()}</span>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <h2 className="mb-4 text-xl font-semibold">Additional Notes</h2>
                   <textarea
-                    id="notes"
-                    name="notes"
-                    rows={3}
-                    className="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="Any special requests or notes for your appointment..."
                     value={bookingNotes}
                     onChange={(e) => setBookingNotes(e.target.value)}
+                    placeholder="Any special requests or notes for your appointment..."
+                    className="p-3 w-full rounded-lg border focus:ring-2 focus:ring-primary-300 focus:border-primary-300"
+                    rows={4}
                   />
                 </div>
-              </div>
 
-              {/* Terms and Conditions */}
-              <div className="p-4 text-sm text-gray-600 rounded-lg bg-primary-50">
-                <p>
-                  By confirming this booking, you agree to our{' '}
-                  <a href="/terms" className="text-primary-500 hover:text-primary-600">
-                    Terms & Conditions
-                  </a>
-                  . A confirmation email will be sent to your registered email address.
-                </p>
-              </div>
-
-              {/* Validation Errors */}
-              {Object.keys(validationErrors).length > 0 && (
-                <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg border-2 border-red-200">
-                  <h3 className="mb-2 font-semibold">Please correct the following errors:</h3>
-                  <ul className="list-disc list-inside">
-                    {Object.entries(validationErrors).map(([field, message]) => (
-                      <li key={field}>{message}</li>
-                    ))}
-                  </ul>
+                {/* Booking Button */}
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setCurrentStep('datetime')}
+                    className="px-6 py-2 text-primary-600 hover:text-primary-700"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleBookingSubmit}
+                    disabled={createBookingMutation.isPending}
+                    className="flex items-center px-6 py-2 space-x-2 text-white rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    {createBookingMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-white animate-spin border-t-transparent" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <span>Confirm Booking</span>
+                    )}
+                  </button>
                 </div>
-              )}
-
-              {/* Confirm Button */}
-              <div className="flex justify-end mt-8">
-                <button
-                  onClick={handleBookingSubmit}
-                  disabled={createBookingMutation.isPending || Object.keys(validationErrors).length > 0}
-                  className="px-6 py-3 font-semibold text-white rounded-lg transition-colors bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {createBookingMutation.isPending ? (
-                    <span className="flex items-center">
-                      <svg className="mr-3 -ml-1 w-5 h-5 text-white animate-spin" 
-                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" 
-                          stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" 
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                        </path>
-                      </svg>
-                      Processing...
-                    </span>
-                  ) : (
-                    'Confirm Booking'
-                  )}
-                </button>
               </div>
             </motion.div>
           )}

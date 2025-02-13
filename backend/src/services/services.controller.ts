@@ -1,4 +1,4 @@
-import { Controller, Get, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Query, Param, NotFoundException } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { ServiceCategory } from '../bookings/enums/service-category.enum';
 
@@ -23,5 +23,18 @@ export class ServicesController {
 
     const services = await this.servicesService.findAll(serviceCategory);
     return services;
+  }
+
+  @Get(':id/addons')
+  async getServiceAddons(@Param('id') serviceId: string) {
+    try {
+      const addons = await this.servicesService.findAddons(serviceId);
+      return addons;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      throw error;
+    }
   }
 } 

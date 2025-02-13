@@ -2,10 +2,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { ServiceCategory } from '../../bookings/enums/service-category.enum';
 
-export type ServiceDocument = Service & Document;
+export type AddonDocument = Addon & Document;
 
 @Schema({ timestamps: true })
-export class Service {
+export class Addon {
   @Prop({ required: true })
   name: string;
 
@@ -13,26 +13,26 @@ export class Service {
   description: string;
 
   @Prop({ required: true })
-  duration: number;
+  price: number;
 
   @Prop({ required: true })
-  price: number;
+  duration: number;
 
   @Prop()
   imageUrl?: string;
 
   @Prop({ 
-    type: String, 
-    enum: ServiceCategory,
+    type: String,
     required: true,
-    index: true 
+    enum: [...Object.values(ServiceCategory), 'both'],
+    index: true
   })
-  category: ServiceCategory;
+  category: string;
 
-  @Prop({ default: 0 })
-  deposit: number;
+  @Prop({ default: true })
+  isActive: boolean;
 }
 
-export const ServiceSchema = SchemaFactory.createForClass(Service);
-ServiceSchema.index({ category: 1 });
-ServiceSchema.index({ isActive: 1 }); 
+export const AddonSchema = SchemaFactory.createForClass(Addon);
+AddonSchema.index({ category: 1 });
+AddonSchema.index({ isActive: 1 }); 

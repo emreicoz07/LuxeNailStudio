@@ -31,16 +31,9 @@ export interface Service {
   description: string;
   duration: number;
   price: number;
-  category: {
-    id: string;
-    name: string;
-  };
-  serviceCategory: ServiceCategory;
-  imageUrl?: string;
-  isActive: boolean;
+  category: string;
   deposit: number;
-  createdAt: Date;
-  updatedAt: Date;
+  imageUrl?: string;
 }
 
 export interface Category {
@@ -54,15 +47,22 @@ export interface Category {
   updatedAt: Date;
 }
 
-export interface AddOn {
+export interface Addon {
   id: string;
   name: string;
   description: string;
-  price: number;
   duration: number;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  price: number;
+  category: string;
+  imageUrl?: string;
+}
+
+export interface BookingSummary {
+  service: Service;
+  addons: Addon[];
+  date: Date;
+  time: string;
+  totalPrice: number;
 }
 
 export interface Appointment {

@@ -2223,6 +2223,72 @@ function isAdmin(req, res, next) {
 
 /***/ }),
 
+/***/ "./src/services/schemas/addon.schema.ts":
+/*!**********************************************!*\
+  !*** ./src/services/schemas/addon.schema.ts ***!
+  \**********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AddonSchema = exports.Addon = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const service_category_enum_1 = __webpack_require__(/*! ../../bookings/enums/service-category.enum */ "./src/bookings/enums/service-category.enum.ts");
+let Addon = class Addon {
+};
+exports.Addon = Addon;
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Addon.prototype, "name", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Addon.prototype, "description", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Addon.prototype, "price", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Number)
+], Addon.prototype, "duration", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Addon.prototype, "imageUrl", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({
+        type: String,
+        required: true,
+        enum: [...Object.values(service_category_enum_1.ServiceCategory), 'both'],
+        index: true
+    }),
+    __metadata("design:type", String)
+], Addon.prototype, "category", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], Addon.prototype, "isActive", void 0);
+exports.Addon = Addon = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], Addon);
+exports.AddonSchema = mongoose_1.SchemaFactory.createForClass(Addon);
+exports.AddonSchema.index({ category: 1 });
+exports.AddonSchema.index({ isActive: 1 });
+
+
+/***/ }),
+
 /***/ "./src/services/schemas/service.schema.ts":
 /*!************************************************!*\
   !*** ./src/services/schemas/service.schema.ts ***!
@@ -2239,9 +2305,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServiceSchema = exports.Service = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const service_category_enum_1 = __webpack_require__(/*! ../../bookings/enums/service-category.enum */ "./src/bookings/enums/service-category.enum.ts");
 let Service = class Service {
 };
 exports.Service = Service;
@@ -2266,8 +2334,13 @@ __decorate([
     __metadata("design:type", String)
 ], Service.prototype, "imageUrl", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true }),
-    __metadata("design:type", String)
+    (0, mongoose_1.Prop)({
+        type: String,
+        enum: service_category_enum_1.ServiceCategory,
+        required: true,
+        index: true
+    }),
+    __metadata("design:type", typeof (_a = typeof service_category_enum_1.ServiceCategory !== "undefined" && service_category_enum_1.ServiceCategory) === "function" ? _a : Object)
 ], Service.prototype, "category", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: 0 }),
@@ -2277,6 +2350,8 @@ exports.Service = Service = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Service);
 exports.ServiceSchema = mongoose_1.SchemaFactory.createForClass(Service);
+exports.ServiceSchema.index({ category: 1 });
+exports.ServiceSchema.index({ isActive: 1 });
 
 
 /***/ }),
@@ -2324,6 +2399,18 @@ let ServicesController = class ServicesController {
         const services = await this.servicesService.findAll(serviceCategory);
         return services;
     }
+    async getServiceAddons(serviceId) {
+        try {
+            const addons = await this.servicesService.findAddons(serviceId);
+            return addons;
+        }
+        catch (error) {
+            if (error instanceof common_1.NotFoundException) {
+                throw new common_1.NotFoundException(error.message);
+            }
+            throw error;
+        }
+    }
 };
 exports.ServicesController = ServicesController;
 __decorate([
@@ -2333,6 +2420,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ServicesController.prototype, "getServices", null);
+__decorate([
+    (0, common_1.Get)(':id/addons'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ServicesController.prototype, "getServiceAddons", null);
 exports.ServicesController = ServicesController = __decorate([
     (0, common_1.Controller)('services'),
     __metadata("design:paramtypes", [typeof (_a = typeof services_service_1.ServicesService !== "undefined" && services_service_1.ServicesService) === "function" ? _a : Object])
@@ -2361,6 +2455,7 @@ const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose
 const services_controller_1 = __webpack_require__(/*! ./services.controller */ "./src/services/services.controller.ts");
 const services_service_1 = __webpack_require__(/*! ./services.service */ "./src/services/services.service.ts");
 const service_schema_1 = __webpack_require__(/*! ./schemas/service.schema */ "./src/services/schemas/service.schema.ts");
+const addon_schema_1 = __webpack_require__(/*! ./schemas/addon.schema */ "./src/services/schemas/addon.schema.ts");
 let ServicesModule = class ServicesModule {
 };
 exports.ServicesModule = ServicesModule;
@@ -2368,7 +2463,8 @@ exports.ServicesModule = ServicesModule = __decorate([
     (0, common_1.Module)({
         imports: [
             mongoose_1.MongooseModule.forFeature([
-                { name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema }
+                { name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema },
+                { name: addon_schema_1.Addon.name, schema: addon_schema_1.AddonSchema }
             ])
         ],
         controllers: [services_controller_1.ServicesController],
@@ -2399,16 +2495,20 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a;
+var ServicesService_1;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServicesService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
 const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
 const service_schema_1 = __webpack_require__(/*! ./schemas/service.schema */ "./src/services/schemas/service.schema.ts");
-let ServicesService = class ServicesService {
-    constructor(serviceModel) {
+const addon_schema_1 = __webpack_require__(/*! ./schemas/addon.schema */ "./src/services/schemas/addon.schema.ts");
+let ServicesService = ServicesService_1 = class ServicesService {
+    constructor(serviceModel, addonModel) {
         this.serviceModel = serviceModel;
+        this.addonModel = addonModel;
+        this.logger = new common_1.Logger(ServicesService_1.name);
     }
     async findAll(category) {
         const query = category ? {
@@ -2422,6 +2522,35 @@ let ServicesService = class ServicesService {
         console.log('Found services:', services);
         return services;
     }
+    async findAddons(serviceId) {
+        try {
+            const service = await this.serviceModel.findById(serviceId).exec();
+            if (!service) {
+                throw new common_1.NotFoundException('Service not found');
+            }
+            this.logger.debug(`Finding addons for service ${serviceId} with category ${service.category}`);
+            const addons = await this.addonModel.find({
+                $and: [
+                    { isActive: true },
+                    {
+                        $or: [
+                            { category: service.category },
+                            { category: 'both' }
+                        ]
+                    }
+                ]
+            }).exec();
+            this.logger.debug(`Found ${addons.length} addons for service ${serviceId}`);
+            return addons;
+        }
+        catch (error) {
+            if (error instanceof common_1.NotFoundException) {
+                throw error;
+            }
+            this.logger.error(`Error finding addons: ${error.message}`);
+            throw new common_1.InternalServerErrorException('Failed to fetch addons');
+        }
+    }
     async findById(id) {
         const service = await this.serviceModel.findOne({ _id: id, isActive: true }).exec();
         if (!service) {
@@ -2431,10 +2560,11 @@ let ServicesService = class ServicesService {
     }
 };
 exports.ServicesService = ServicesService;
-exports.ServicesService = ServicesService = __decorate([
+exports.ServicesService = ServicesService = ServicesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+    __param(1, (0, mongoose_1.InjectModel)(addon_schema_1.Addon.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object])
 ], ServicesService);
 
 
