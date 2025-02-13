@@ -1,6 +1,6 @@
 import { Request } from 'express';
 import { Types } from 'mongoose';
-import { UserRole } from '../schemas/user.schema';
+import { UserRole } from '../enums/user-role.enum';
 
 export interface UserFromRequest {
   _id: Types.ObjectId;

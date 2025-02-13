@@ -29,7 +29,7 @@ export class User {
   @Prop()
   phone?: string;
 
-  @Prop({ type: String, enum: UserRole, required: true })
+  @Prop({ type: String, enum: UserRole, required: true, default: UserRole.CLIENT })
   role: UserRole;
 
   @Prop({ default: false })

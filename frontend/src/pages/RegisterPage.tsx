@@ -27,14 +27,14 @@ const schema = yup.object().shape({
     .required('First name is required')
     .min(2, 'First name must be at least 2 characters')
     .max(50, 'First name must not exceed 50 characters')
-    .matches(/^[A-Za-z\s]+$/, 'First name can only contain letters'),
+    .matches(/^[A-Za-z\s]+$/, 'First name can only contain letters and spaces'),
   
   lastName: yup
     .string()
     .required('Last name is required')
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must not exceed 50 characters')
-    .matches(/^[A-Za-z\s]+$/, 'Last name can only contain letters'),
+    .matches(/^[A-Za-z\s]+$/, 'Last name can only contain letters and spaces'),
   
   email: yup
     .string()
@@ -44,7 +44,11 @@ const schema = yup.object().shape({
   phone: yup
     .string()
     .nullable()
-    .matches(/^\+?[1-9]\d{1,14}$/, 'Please enter a valid phone number'),
+    .transform((value) => (value === '' ? null : value))
+    .matches(/^\+?[1-9]\d{1,14}$/, {
+      message: 'Please enter a valid phone number',
+      excludeEmptyString: true
+    }),
   
   password: yup
     .string()
@@ -57,9 +61,12 @@ const schema = yup.object().shape({
   confirmPassword: yup
     .string()
     .required('Please confirm your password')
-    .oneOf([yup.ref('password')], 'Passwords must match'),
+    .oneOf([yup.ref('password')], 'Passwords do not match'),
   
-  subscribe: yup.boolean(),
+  subscribe: yup
+    .boolean()
+    .default(false),
+  
   agreeToTerms: yup
     .boolean()
     .oneOf([true], 'You must agree to the Terms & Conditions')
@@ -70,12 +77,38 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterFormInputs>();
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setError,
+    formState: { errors, isSubmitting }
+  } = useForm<RegisterFormInputs>({
+    resolver: yupResolver(schema),
+    mode: 'onChange'
+  });
+
+  const password = watch('password');
+  const confirmPassword = watch('confirmPassword');
+
+  // Update password match effect with proper error handling
+  useEffect(() => {
+    if (confirmPassword && password !== confirmPassword) {
+      setError('confirmPassword', {
+        type: 'manual',
+        message: 'Passwords do not match. Please make sure both password fields are identical.'
+      });
+    } else {
+      // Clear the error when passwords match
+      setError('confirmPassword', {
+        type: 'manual',
+        message: undefined
+      });
+    }
+  }, [password, confirmPassword, setError]);
 
   const onSubmit = async (data: RegisterFormInputs) => {
     try {
-      setIsSubmitting(true);
       const registrationData = {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -86,30 +119,33 @@ const RegisterPage = () => {
         subscribe: data.subscribe || false,
         agreeToTerms: data.agreeToTerms
       };
-      
-      const response = await authService.register(registrationData);
-      
-      toast.success('Registration successful! Redirecting to login...', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
 
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-
-    } catch (error) {
-      console.error('Registration error:', error);
-      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      await registerUser(registrationData);
+      toast.success('Registration successful! Please log in.');
+      navigate('/login');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 
+        (Array.isArray(error.message) ? error.message[0] : error.message) ||
+        'Registration failed. Please try again.';
+      
+      toast.error(errorMessage);
+      
+      // Handle specific error cases
+      if (error.response?.data?.error === 'PASSWORD_MISMATCH') {
+        setError('confirmPassword', {
+          type: 'manual',
+          message: error.response.data.message
+        });
+      } else if (error.response?.data?.error === 'EMAIL_EXISTS') {
+        setError('email', {
+          type: 'manual',
+          message: error.response.data.message
+        });
+      }
     }
   };
 
+  // Clear auth errors when component unmounts
   useEffect(() => {
     return () => clearError();
   }, [clearError]);

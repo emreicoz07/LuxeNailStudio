@@ -38,13 +38,21 @@ export class AuthService {
     }
 
     if (password !== confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
+      throw new BadRequestException({
+        success: false,
+        error: 'PASSWORD_MISMATCH',
+        message: 'Passwords do not match. Please make sure both password fields are identical.'
+      });
     }
 
     try {
       const existingUser = await this.userModel.findOne({ email });
       if (existingUser) {
-        throw new ConflictException('Email already registered');
+        throw new ConflictException({
+          success: false,
+          error: 'EMAIL_EXISTS',
+          message: 'This email is already registered. Please use a different email address.'
+        });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -86,8 +94,7 @@ export class AuthService {
         },
         token
       };
-    } catch (error) {
-      // Improved error logging
+    } catch (error: any) {
       this.logger.error(`Registration failed for email ${email}:`, {
         error: error.message,
         stack: error.stack,
@@ -96,16 +103,32 @@ export class AuthService {
 
       // Handle MongoDB duplicate key error
       if (error.code === 11000) {
-        throw new ConflictException('Email already registered');
+        throw new ConflictException({
+          success: false,
+          error: 'EMAIL_EXISTS',
+          message: 'This email is already registered. Please use a different email address.'
+        });
       }
 
-      // Handle validation errors
-      if (error.name === 'ValidationError') {
-        throw new BadRequestException(Object.values(error.errors).map(err => err.message).join(', '));
+      // Handle validation errors with proper type checking
+      if (error.name === 'ValidationError' && error.errors) {
+        const validationErrors = Object.values(error.errors as Record<string, { message: string }>)
+          .map(err => err.message)
+          .join(', ');
+        
+        throw new BadRequestException({
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: validationErrors
+        });
       }
 
       // Handle other errors
-      throw new BadRequestException(error.message || 'Could not create user');
+      throw new BadRequestException({
+        success: false,
+        error: 'REGISTRATION_FAILED',
+        message: error.message || 'Registration failed. Please try again later.'
+      });
     }
   }
 

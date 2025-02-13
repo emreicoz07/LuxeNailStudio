@@ -278,12 +278,20 @@ let AuthService = AuthService_1 = class AuthService {
             throw new common_1.BadRequestException('You must agree to the Terms & Conditions');
         }
         if (password !== confirmPassword) {
-            throw new common_1.BadRequestException('Passwords do not match');
+            throw new common_1.BadRequestException({
+                success: false,
+                error: 'PASSWORD_MISMATCH',
+                message: 'Passwords do not match. Please make sure both password fields are identical.'
+            });
         }
         try {
             const existingUser = await this.userModel.findOne({ email });
             if (existingUser) {
-                throw new common_1.ConflictException('Email already registered');
+                throw new common_1.ConflictException({
+                    success: false,
+                    error: 'EMAIL_EXISTS',
+                    message: 'This email is already registered. Please use a different email address.'
+                });
             }
             const hashedPassword = await bcrypt.hash(password, 10);
             const user = await this.userModel.create({
@@ -326,12 +334,27 @@ let AuthService = AuthService_1 = class AuthService {
                 code: error.code
             });
             if (error.code === 11000) {
-                throw new common_1.ConflictException('Email already registered');
+                throw new common_1.ConflictException({
+                    success: false,
+                    error: 'EMAIL_EXISTS',
+                    message: 'This email is already registered. Please use a different email address.'
+                });
             }
-            if (error.name === 'ValidationError') {
-                throw new common_1.BadRequestException(Object.values(error.errors).map(err => err.message).join(', '));
+            if (error.name === 'ValidationError' && error.errors) {
+                const validationErrors = Object.values(error.errors)
+                    .map(err => err.message)
+                    .join(', ');
+                throw new common_1.BadRequestException({
+                    success: false,
+                    error: 'VALIDATION_ERROR',
+                    message: validationErrors
+                });
             }
-            throw new common_1.BadRequestException(error.message || 'Could not create user');
+            throw new common_1.BadRequestException({
+                success: false,
+                error: 'REGISTRATION_FAILED',
+                message: error.message || 'Registration failed. Please try again later.'
+            });
         }
     }
     async login(loginDto) {
@@ -713,7 +736,7 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "phone", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: String, enum: user_role_enum_1.UserRole, required: true }),
+    (0, mongoose_1.Prop)({ type: String, enum: user_role_enum_1.UserRole, required: true, default: user_role_enum_1.UserRole.CLIENT }),
     __metadata("design:type", typeof (_a = typeof user_role_enum_1.UserRole !== "undefined" && user_role_enum_1.UserRole) === "function" ? _a : Object)
 ], User.prototype, "role", void 0);
 __decorate([

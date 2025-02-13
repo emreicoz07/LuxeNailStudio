@@ -8,7 +8,8 @@ interface LoginCredentials {
 }
 
 interface RegisterData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone?: string | null;
   password: string;
@@ -21,9 +22,11 @@ interface AuthResponse {
   token: string;
   user: {
     id: string;
-    name: string;
     email: string;
+    firstName: string;
+    lastName: string;
     role: string;
+    phone?: string;
   };
 }
 
@@ -73,11 +76,26 @@ class AuthService {
       throw new Error('Registration successful but no token received');
     } catch (error: any) {
       console.error('Registration error:', error.response?.data);
-      throw error.response?.data?.message 
-        ? new Error(Array.isArray(error.response.data.message) 
-            ? error.response.data.message[0] 
-            : error.response.data.message)
-        : new Error('Registration failed. Please try again later.');
+      
+      // Handle specific error types
+      if (error.response?.data?.error === 'PASSWORD_MISMATCH') {
+        throw {
+          message: error.response.data.message,
+          response: error.response
+        };
+      }
+
+      // Handle validation errors
+      if (error.response?.status === 400 && error.response?.data?.message) {
+        throw {
+          message: Array.isArray(error.response.data.message)
+            ? error.response.data.message[0]
+            : error.response.data.message,
+          response: error.response
+        };
+      }
+
+      throw new Error('Registration failed. Please try again later.');
     }
   }
 

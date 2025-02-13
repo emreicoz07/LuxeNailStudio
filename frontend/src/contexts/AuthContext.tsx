@@ -5,9 +5,11 @@ import { jwtDecode } from 'jwt-decode';
 
 interface User {
   id: string;
-  name: string;
   email: string;
+  firstName: string;
+  lastName: string;
   role: string;
+  phone?: string;
 }
 
 interface RegisterData {
@@ -73,14 +75,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = useCallback(async (data: RegisterData) => {
     try {
+      setLoading(true);
+      clearError();
       const response = await authService.register(data);
       setUser(response.user);
-      setError(null);
+      setIsAuthenticated(true);
+      return response;
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed');
+      const errorMessage = err.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
+      sessionStorage.setItem('authError', JSON.stringify(errorMessage));
       throw err;
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [clearError]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
