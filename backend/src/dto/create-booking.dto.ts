@@ -19,10 +19,6 @@ export class CreateBookingDto {
   @Min(0)
   amount: number;
 
-  @IsNumber()
-  @Min(0)
-  depositAmount: number;
-
   @IsString()
   @IsOptional()
   notes?: string;

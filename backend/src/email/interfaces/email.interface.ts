@@ -6,7 +6,6 @@ export interface BookingEmailDetails {
   id: string;
   dateTime: Date;
   totalAmount: number;
-  depositAmount: number;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   serviceName: string;
@@ -15,6 +14,7 @@ export interface BookingEmailDetails {
     name: string;
     price: number;
   }>;
+  depositAmount?: number;
 }
 
 export interface BookingConfirmationEmailData {

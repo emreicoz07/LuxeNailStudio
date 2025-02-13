@@ -52,62 +52,55 @@ export class BookingsService {
     return service.duration + addOnsDuration;
   }
 
+  private async validateService(serviceId: string): Promise<ServiceDocument> {
+    const service = await this.serviceModel.findOne({ 
+      _id: new Types.ObjectId(serviceId),
+      isActive: true
+    }).exec();
+    
+    if (!service) {
+      throw new NotFoundException('Service not found or inactive');
+    }
+    
+    return service;
+  }
+
+  private calculateDepositAmount(service: ServiceDocument): number {
+    if (service.price >= 50) {
+      return Math.round(service.price * 0.2);
+    }
+    return 0;
+  }
+
   async create(createBookingDto: CreateBookingDto, user: UserFromRequest): Promise<BookingDocument> {
     try {
       this.logger.debug(`Creating booking for user: ${user._id}, service: ${createBookingDto.serviceId}`);
       
-      // Log the current state of collections
-      const servicesCount = await this.serviceModel.countDocuments();
-      const addOnsCount = await this.addOnModel.countDocuments();
-      this.logger.debug(`Current counts - Services: ${servicesCount}, AddOns: ${addOnsCount}`);
-
-      this.logger.debug(`Attempting to find service with ID: ${createBookingDto.serviceId}`);
+      // Validate service exists and is active
+      const service = await this.validateService(createBookingDto.serviceId);
       
-      let service;
-      try {
-        service = await this.serviceModel.findOne({ 
-          _id: new Types.ObjectId(createBookingDto.serviceId),
-          isActive: true
-        }).exec();
-        
-        this.logger.debug(`Service search result: ${JSON.stringify(service)}`);
-        
-      } catch (error) {
-        this.logger.error(`Error finding service: ${error.message}`, error.stack);
-        if (error.name === 'BSONTypeError') {
-          throw new BadRequestException('Invalid service ID format');
-        }
-        throw error;
-      }
-
-      if (!service) {
-        // Check if service exists but is inactive
-        const inactiveService = await this.serviceModel.findById(createBookingDto.serviceId).exec();
-        if (inactiveService) {
-          throw new BadRequestException('This service is currently inactive');
-        }
-        throw new NotFoundException('Service not found');
-      }
-
+      // Validate add-ons
       const addOns = await this.validateAddOns(createBookingDto.addOnIds || []);
       const totalPrice = this.calculateTotalPrice(service, addOns);
       const totalDuration = this.calculateTotalDuration(service, addOns);
+      const depositAmount = this.calculateDepositAmount(service);
 
       if (createBookingDto.amount !== totalPrice) {
         throw new BadRequestException(`Invalid total amount. Expected: ${totalPrice}`);
       }
 
+      // Create booking
       const booking = new this.bookingModel({
         userId: user._id,
         serviceId: service._id,
-        addOnIds: addOns.map((addOn: AddOnDocument) => addOn._id),
+        addOnIds: addOns.map(addOn => addOn._id),
         dateTime: createBookingDto.appointmentDate,
         duration: totalDuration,
         totalAmount: totalPrice,
-        depositAmount: createBookingDto.depositAmount || 0,
+        depositAmount,
         status: BookingStatus.PENDING,
         notes: createBookingDto.notes,
-        paymentStatus: createBookingDto.paymentStatus || PaymentStatus.UNPAID
+        paymentStatus: PaymentStatus.UNPAID
       });
 
       const savedBooking = await booking.save();
@@ -127,7 +120,6 @@ export class BookingsService {
           id: populatedBooking._id.toString(),
           dateTime: populatedBooking.dateTime,
           totalAmount: populatedBooking.totalAmount,
-          depositAmount: populatedBooking.depositAmount,
           status: populatedBooking.status,
           paymentStatus: populatedBooking.paymentStatus,
           serviceName: service.name,

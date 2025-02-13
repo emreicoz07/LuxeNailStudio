@@ -537,39 +537,35 @@ const BookingPage: React.FC = () => {
       const appointmentDate = new Date(selectedDate);
       appointmentDate.setHours(hour, parseInt(minutes), 0, 0);
 
+      const totalAmount = calculateTotalPrice();
+      const depositAmount = calculateDepositAmount();
+
       const bookingData = {
         serviceId: selectedServiceData.id,
         addOnIds: selectedAddOns,
         appointmentDate: appointmentDate.toISOString(),
-        amount: calculateTotalPrice(),
-        depositAmount: selectedServiceData.depositRequired ? selectedServiceData.depositAmount : undefined,
-        notes: bookingNotes,
-        paymentStatus: 'UNPAID'
+        amount: totalAmount,
+        notes: bookingNotes || ''
       };
 
       // Validate booking data
       const validationResult = bookingValidationSchema.safeParse(bookingData);
       if (!validationResult.success) {
-        const errors: Record<string, string> = {};
-        validationResult.error.errors.forEach((err) => {
-          errors[err.path[0]] = err.message;
-        });
+        const errors = validationResult.error.errors;
         setValidationErrors(errors);
+        toast.error('Please check your booking details');
         return;
       }
 
-      setIsSubmitting(true);
       const result = await createBookingMutation.mutateAsync(bookingData);
       
       if (result) {
         toast.success('Booking created successfully!');
-        navigate('/bookings');
+        navigate('/bookings/' + result._id);
       }
     } catch (error) {
-      console.error('Booking submission error:', error);
-      toast.error('Failed to create booking. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Booking error:', error);
+      toast.error(error.message || 'Failed to create booking');
     }
   };
 

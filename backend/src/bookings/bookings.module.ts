@@ -12,9 +12,6 @@ import { EmailModule } from '../email/email.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
-import { ServicesSeedService } from './seeds/services.seed';
-import { SeedCommand } from './commands/seed.command';
-import { AddOnsSeeder } from './seeds/addons.seed';
 
 @Module({
   imports: [
@@ -32,25 +29,7 @@ import { AddOnsSeeder } from './seeds/addons.seed';
     ScheduleModule.forRoot(),
   ],
   controllers: [BookingsController],
-  providers: [
-    BookingsService,
-    ServicesSeedService,
-    AddOnsSeeder,
-    SeedCommand,
-    {
-      provide: 'SEED_DATA',
-      useFactory: async (servicesSeedService: ServicesSeedService, addOnsSeeder: AddOnsSeeder) => {
-        try {
-          await servicesSeedService.seed();
-          await addOnsSeeder.seed();
-          console.log('Data seeding completed successfully');
-        } catch (error) {
-          console.error('Error seeding data:', error);
-        }
-      },
-      inject: [ServicesSeedService, AddOnsSeeder],
-    },
-  ],
+  providers: [BookingsService],
   exports: [BookingsService]
 })
 export class BookingsModule {} 

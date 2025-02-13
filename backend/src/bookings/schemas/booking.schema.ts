@@ -44,16 +44,13 @@ export class Booking {
   @Prop({ required: true })
   totalAmount: number;
 
-  @Prop({ required: true, default: 0 })
-  depositAmount: number;
-
   @Prop({ enum: BookingStatus, default: BookingStatus.PENDING })
   status: BookingStatus;
 
   @Prop({ 
     type: String,
     enum: PaymentStatus,
-    default: PaymentStatus.PENDING 
+    default: PaymentStatus.UNPAID 
   })
   paymentStatus: PaymentStatus;
 

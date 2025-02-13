@@ -2,7 +2,7 @@ import axios from 'axios';
 import { config } from '../config';
 
 const api = axios.create({
-  baseURL: `${config.apiUrl}/bookings`,
+  baseURL: config.apiUrl,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -27,7 +27,6 @@ export interface CreateBookingData {
   addOnIds?: string[];
   appointmentDate: string;
   amount: number;
-  depositAmount?: number;
   notes?: string;
 }
 
@@ -37,12 +36,11 @@ export const bookingApi = {
       const formattedData = {
         ...data,
         appointmentDate: new Date(data.appointmentDate).toISOString(),
-        addOnIds: data.addOnIds || [],
-        paymentStatus: 'UNPAID'
+        addOnIds: data.addOnIds || []
       };
 
       console.log('Sending booking request:', formattedData);
-      const response = await api.post('/', formattedData);
+      const response = await api.post('/bookings', formattedData);
       console.log('Booking response:', response.data);
       return response.data;
     } catch (error) {
