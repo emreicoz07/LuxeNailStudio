@@ -65,6 +65,9 @@ export class Booking {
 
   @Prop({ type: String })
   paymentId?: string;
+
+  @Prop({ type: Number, default: 0 })
+  depositAmount: number;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);
