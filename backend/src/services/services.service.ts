@@ -15,32 +15,40 @@ export class ServicesService {
   ) {}
 
   async findAll(category?: ServiceCategory): Promise<Service[]> {
-    const query = category ? {
-      category: { $regex: new RegExp(`^${category}$`, 'i') },
-      isActive: true
-    } : {
-      isActive: true
-    };
-    
-    console.log('MongoDB query:', query);
-    
-    const services = await this.serviceModel.find(query).exec();
-    console.log('Found services:', services);
-    
-    return services;
+    try {
+      const query = category ? {
+        category: { $regex: new RegExp(`^${category}$`, 'i') },
+        isActive: true
+      } : {
+        isActive: true
+      };
+      
+      this.logger.debug(`Fetching services with query: ${JSON.stringify(query)}`);
+      
+      const services = await this.serviceModel
+        .find(query)
+        .select('name description duration price category imageUrl deposit isActive')
+        .sort({ price: 1 })
+        .lean()
+        .exec();
+      
+      this.logger.debug(`Found ${services.length} services`);
+      return services;
+    } catch (error) {
+      this.logger.error(`Error fetching services: ${error.message}`);
+      throw new InternalServerErrorException('Failed to fetch services');
+    }
   }
 
   async findAddons(serviceId: string): Promise<Addon[]> {
     try {
-      // First get the service to check its category
       const service = await this.serviceModel.findById(serviceId).exec();
       if (!service) {
-        throw new NotFoundException('Service not found');
+        throw new NotFoundException(`Service with ID ${serviceId} not found`);
       }
 
       this.logger.debug(`Finding addons for service ${serviceId} with category ${service.category}`);
 
-      // Find addons that match either the service category or 'both'
       const addons = await this.addonModel.find({
         $and: [
           { isActive: true },
@@ -51,10 +59,13 @@ export class ServicesService {
             ]
           }
         ]
-      }).exec();
+      })
+      .select('name description duration price category imageUrl isActive')
+      .sort({ price: 1 })
+      .lean()
+      .exec();
 
       this.logger.debug(`Found ${addons.length} addons for service ${serviceId}`);
-
       return addons;
     } catch (error) {
       if (error instanceof NotFoundException) {

@@ -67,24 +67,11 @@ export const bookingApi = {
 
   getServices: async (category?: string) => {
     try {
-      const response = await api.get('/services', {
-        params: { 
-          category: category?.toUpperCase() // Ensure uppercase for consistency
-        }
-      });
-      
-      return response.data.map((service: any) => ({
-        id: service._id,
-        name: service.name,
-        description: service.description,
-        duration: service.duration,
-        price: service.price,
-        category: service.category,
-        deposit: service.deposit,
-        imageUrl: service.imageUrl
-      }));
+      const response = await axios.get(`/api/services${category ? `?category=${category}` : ''}`);
+      console.log('API Response:', response);
+      return response.data;
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error('API Error:', error);
       throw error;
     }
   },

@@ -32,8 +32,8 @@ export interface Service {
   duration: number;
   price: number;
   category: string;
-  deposit: number;
   imageUrl?: string;
+  isActive: boolean;
 }
 
 export interface Category {

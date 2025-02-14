@@ -2396,29 +2396,45 @@ let ServicesController = class ServicesController {
         this.servicesService = servicesService;
     }
     async getServices(category) {
-        let serviceCategory;
-        if (category) {
-            const normalizedCategory = category.toUpperCase();
-            if (normalizedCategory in service_category_enum_1.ServiceCategory) {
-                serviceCategory = service_category_enum_1.ServiceCategory[normalizedCategory];
+        try {
+            let serviceCategory;
+            if (category) {
+                const normalizedCategory = category.toUpperCase();
+                if (normalizedCategory in service_category_enum_1.ServiceCategory) {
+                    serviceCategory = service_category_enum_1.ServiceCategory[normalizedCategory];
+                }
+                else {
+                    throw new common_1.NotFoundException(`Category ${category} not found`);
+                }
             }
-            else {
-                throw new common_1.NotFoundException(`Category ${category} not found`);
-            }
+            const services = await this.servicesService.findAll(serviceCategory);
+            return {
+                success: true,
+                data: services,
+                count: services.length
+            };
         }
-        const services = await this.servicesService.findAll(serviceCategory);
-        return services;
+        catch (error) {
+            if (error instanceof common_1.NotFoundException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Failed to fetch services');
+        }
     }
     async getServiceAddons(serviceId) {
         try {
             const addons = await this.servicesService.findAddons(serviceId);
-            return addons;
+            return {
+                success: true,
+                data: addons,
+                count: addons.length
+            };
         }
         catch (error) {
             if (error instanceof common_1.NotFoundException) {
                 throw new common_1.NotFoundException(error.message);
             }
-            throw error;
+            throw new common_1.InternalServerErrorException('Failed to fetch addons');
         }
     }
 };
@@ -2521,22 +2537,33 @@ let ServicesService = ServicesService_1 = class ServicesService {
         this.logger = new common_1.Logger(ServicesService_1.name);
     }
     async findAll(category) {
-        const query = category ? {
-            category: { $regex: new RegExp(`^${category}$`, 'i') },
-            isActive: true
-        } : {
-            isActive: true
-        };
-        console.log('MongoDB query:', query);
-        const services = await this.serviceModel.find(query).exec();
-        console.log('Found services:', services);
-        return services;
+        try {
+            const query = category ? {
+                category: { $regex: new RegExp(`^${category}$`, 'i') },
+                isActive: true
+            } : {
+                isActive: true
+            };
+            this.logger.debug(`Fetching services with query: ${JSON.stringify(query)}`);
+            const services = await this.serviceModel
+                .find(query)
+                .select('name description duration price category imageUrl deposit isActive')
+                .sort({ price: 1 })
+                .lean()
+                .exec();
+            this.logger.debug(`Found ${services.length} services`);
+            return services;
+        }
+        catch (error) {
+            this.logger.error(`Error fetching services: ${error.message}`);
+            throw new common_1.InternalServerErrorException('Failed to fetch services');
+        }
     }
     async findAddons(serviceId) {
         try {
             const service = await this.serviceModel.findById(serviceId).exec();
             if (!service) {
-                throw new common_1.NotFoundException('Service not found');
+                throw new common_1.NotFoundException(`Service with ID ${serviceId} not found`);
             }
             this.logger.debug(`Finding addons for service ${serviceId} with category ${service.category}`);
             const addons = await this.addonModel.find({
@@ -2549,7 +2576,11 @@ let ServicesService = ServicesService_1 = class ServicesService {
                         ]
                     }
                 ]
-            }).exec();
+            })
+                .select('name description duration price category imageUrl isActive')
+                .sort({ price: 1 })
+                .lean()
+                .exec();
             this.logger.debug(`Found ${addons.length} addons for service ${serviceId}`);
             return addons;
         }
