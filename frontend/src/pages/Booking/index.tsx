@@ -3,14 +3,15 @@ import Section from '../../components/common/Section';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSpa } from 'react-icons/fa';
 import { GiNails } from 'react-icons/gi';
-import { format, addDays,  } from 'date-fns';
+import { format, addDays, addMonths, isBefore, startOfToday } from 'date-fns';
 import { HiOutlineCalendar, HiOutlineClock, } from 'react-icons/hi';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { bookingApi,  } from '../../api/bookingApi';
 import { useAuth } from '../../hooks/useAuth';
-
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 type BookingStep = 'category' | 'service' | 'employee' | 'datetime' | 'summary';
 
@@ -38,8 +39,6 @@ interface TimeSlot {
   available: boolean;
 }
 
-
-
 const BookingPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<BookingStep>('category');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -60,6 +59,10 @@ const BookingPage: React.FC = () => {
 
   // Add-ons görüntülendiğini takip etmek için yeni state
   const [hasViewedAddons, setHasViewedAddons] = useState(false);
+
+  // Minimum ve maksimum tarih aralığını belirle
+  const minDate = startOfToday();
+  const maxDate = addMonths(minDate, 2); // 2 ay ileri
 
   const categories = [
     {
@@ -212,7 +215,6 @@ const BookingPage: React.FC = () => {
     return total;
   };
 
-
   const handleBookingSubmit = async () => {
     try {
       if (!isAuthenticated) {
@@ -288,8 +290,6 @@ const BookingPage: React.FC = () => {
       toast.error(error.message || 'Failed to create booking');
     }
   };
-
-
 
   useEffect(() => {
     if (services) {
@@ -394,6 +394,103 @@ const BookingPage: React.FC = () => {
       >
         Next
       </button>
+    );
+  };
+
+  // Tarih seçimi için fonksiyon
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
+    setSelectedTime(''); // Yeni tarih seçildiğinde seçili saati sıfırla
+    setTimeSlots([]); // Zaman slotlarını sıfırla
+  };
+
+  // datetime adımı için render fonksiyonu
+  const renderDateTimeStep = () => {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-6"
+      >
+        <h2 className="text-2xl font-semibold mb-6">Select Date & Time</h2>
+        
+        {/* Calendar ve Time Slots Container */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Calendar Section */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-medium mb-4">Select Date</h3>
+            <DatePicker
+              selected={selectedDate}
+              onChange={handleDateChange}
+              inline
+              minDate={minDate}
+              maxDate={maxDate}
+              calendarClassName="!border-none"
+              dayClassName={date => 
+                isBefore(date, minDate) ? "text-gray-300" : "hover:bg-primary-100"
+              }
+              filterDate={date => {
+                return date.getDay() !== 0; // Pazar günlerini devre dışı bırak
+              }}
+            />
+          </div>
+
+          {/* Time Slots Section */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-medium mb-4">Available Time Slots</h3>
+            {selectedDate ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {timeSlots.map((slot) => (
+                  <button
+                    key={slot.time}
+                    onClick={() => setSelectedTime(slot.time)}
+                    disabled={!slot.available}
+                    className={`
+                      p-3 rounded-lg text-center transition-colors
+                      ${selectedTime === slot.time
+                        ? 'bg-primary-500 text-white'
+                        : slot.available
+                          ? 'bg-gray-100 hover:bg-primary-100'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }
+                    `}
+                  >
+                    {slot.time}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-gray-500 text-center py-8">
+                Please select a date to see available time slots
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between mt-8">
+          <button
+            onClick={() => setCurrentStep('employee')}
+            className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            Back
+          </button>
+          <button
+            onClick={() => setCurrentStep('summary')}
+            disabled={!selectedDate || !selectedTime}
+            className={`
+              px-6 py-3 rounded-lg transition-colors
+              ${selectedDate && selectedTime
+                ? 'bg-primary-500 text-white hover:bg-primary-600'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }
+            `}
+          >
+            Next
+          </button>
+        </div>
+      </motion.div>
     );
   };
 
@@ -693,103 +790,7 @@ const BookingPage: React.FC = () => {
             </motion.div>
           )}
 
-          {currentStep === 'datetime' && selectedService && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center mb-8">
-                <button
-                  onClick={() => setCurrentStep('service')}
-                  className="text-gray-500 transition-colors hover:text-primary-500"
-                >
-                  ← Back
-                </button>
-                <h1 className="flex-1 text-4xl font-bold text-center">
-                  Choose Date & Time
-                </h1>
-              </div>
-
-              {/* Date Selection */}
-              <div ref={dateSelectionRef} className="space-y-4">
-                <h2 className="flex items-center text-xl font-semibold">
-                  <HiOutlineCalendar className="mr-2 w-5 h-5" />
-                  Select Date
-                </h2>
-                <div className="grid grid-cols-4 gap-3">
-                  {[...Array(7)].map((_, index) => {
-                    const date = addDays(new Date(), index);
-                    const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
-                    
-                    return (
-                      <button
-                        key={date.toISOString()}
-                        onClick={() => setSelectedDate(date)}
-                        className={`
-                          p-4 rounded-lg border-2 transition-all duration-300
-                          ${isSelected 
-                            ? 'border-primary-300 bg-primary-50' 
-                            : 'border-gray-100 hover:border-primary-200'
-                          }
-                        `}
-                      >
-                        <div className="text-sm text-gray-600">
-                          {format(date, 'EEE')}
-                        </div>
-                        <div className="text-lg font-semibold">
-                          {format(date, 'd')}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Time Selection */}
-              <div className="space-y-4">
-                <h2 className="flex items-center text-xl font-semibold">
-                  <HiOutlineClock className="mr-2 w-5 h-5" />
-                  Select Time
-                </h2>
-                <div className="grid grid-cols-3 gap-3 md:grid-cols-4">
-                  {timeSlots.map((slot: { time: string; available: boolean }) => (
-                    <button
-                      key={slot.time}
-                      onClick={() => setSelectedTime(slot.time)}
-                      disabled={!slot.available}
-                      className={`
-                        p-3 rounded-lg border-2 transition-all duration-300
-                        ${selectedTime === slot.time 
-                          ? 'border-primary-300 bg-primary-50' 
-                          : 'border-gray-100 hover:border-primary-200'
-                        }
-                        ${!slot.available && 'opacity-50 cursor-not-allowed'}
-                      `}
-                    >
-                      {slot.time}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Continue Button */}
-              <div className="flex justify-end mt-8">
-                <button
-                  onClick={handleDateTimeSubmit}
-                  disabled={!selectedTime}
-                  className={`px-6 py-3 rounded-lg font-semibold text-white transition-all duration-300 ${
-                    selectedTime 
-                      ? 'bg-primary-500 hover:bg-primary-600' 
-                      : 'bg-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  Continue to Summary
-                </button>
-              </div>
-            </motion.div>
-          )}
+          {currentStep === 'datetime' && renderDateTimeStep()}
 
           {currentStep === 'summary' && (
             <motion.div
