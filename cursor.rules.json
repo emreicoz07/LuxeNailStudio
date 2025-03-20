@@ -14,8 +14,7 @@
       "description": "Backend development rules and best practices",
       "rules": {
         "framework": "Nest.js",
-        "database": "PostgreSQL",
-        "useOrm": "Prisma",
+        "database": "Mongoose",
         "authentication": "JWT",
         "validationLibrary": "Zod",
         "errorHandling": "Global exception filter",

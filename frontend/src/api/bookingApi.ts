@@ -129,4 +129,30 @@ export const bookingApi = {
       throw error;
     }
   },
+
+  getWorkingHours: async () => {
+    try {
+      const response = await api.get('/bookings/working-hours');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching working hours:', error);
+      throw error;
+    }
+  },
+
+  getAvailableTimeSlots: async (date: string, employeeId: string, serviceId: string) => {
+    try {
+      const response = await api.get('/available-slots', {
+        params: {
+          date,
+          employeeId,
+          serviceId
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching available slots:', error);
+      throw error;
+    }
+  }
 }; 

@@ -3,15 +3,22 @@ import { Types } from 'mongoose';
 import { UserRole } from '../enums/user-role.enum';
 
 export interface UserFromRequest {
-  _id: Types.ObjectId;
+  _id?: string;
   userId: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  name: string;
+  role: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface RequestWithUser extends Request {
-  user: UserFromRequest;
+  user?: {
+    userId: string;
+    email: string;
+    role: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+  };
 } 

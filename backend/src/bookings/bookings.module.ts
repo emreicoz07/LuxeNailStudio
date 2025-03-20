@@ -12,6 +12,8 @@ import { EmailModule } from '../email/email.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
+import { Employee, EmployeeSchema } from './schemas/employee.schema';
+import { WorkingHours, WorkingHoursSchema } from './schemas/working-hours.schema';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { Appointment, AppointmentSchema } from './schemas/appointment.schema';
       { name: Category.name, schema: CategorySchema },
       { name: AddOn.name, schema: AddOnSchema },
       { name: Appointment.name, schema: AppointmentSchema },
+      { name: Employee.name, schema: EmployeeSchema },
+      { name: WorkingHours.name, schema: WorkingHoursSchema }
     ]),
     StripeModule,
     AuthModule,

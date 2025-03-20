@@ -14,7 +14,7 @@ Language: TypeScript
 Framework: Nest.js (Recommended) or Express.js
 Linting & Formatting: ESLint & Prettier for consistent code quality
 Database: PostgreSQL (preferred) or MongoDB
-ORM: Prisma ORM (Recommended) or TypeORM/Mongoose
+Mongoose
 Authentication: JWT-based authentication
 Data Validation: Validate request bodies using Zod or Joi
 Error Handling: Implement proper exception handling & logging
@@ -126,7 +126,7 @@ Additional Requirements
 
 Summary of Requirements
 Category	Requirement
-Backend	TypeScript, Nest.js/Express, PostgreSQL, Prisma ORM
+Backend	TypeScript, Nest.js/Express, MongoDB, Mongoose
 Frontend	React, Redux Toolkit, Tailwind CSS, Axios
 Mobile (Optional)	React Native, Redux Toolkit, React Navigation
 Authentication	JWT-based, Secure Login
@@ -177,7 +177,7 @@ You are an expert AI developer responsible for creating a **seamless user regist
 ---
 ## 🛠 **Project Specifications**
 - **Frontend:** React (TypeScript), Redux Toolkit, Tailwind CSS, Axios
-- **Backend:** Nest.js (TypeScript), MongoDB (Mongoose), Prisma ORM
+- **Backend:** Nest.js (TypeScript), MongoDB (Mongoose),
 - **Authentication:** JWT-based authentication
 - **Validation:** Zod or Joi for backend, React Hook Form with Yup for frontend
 - **Testing:** Jest for unit tests, Supertest for API tests

@@ -19,8 +19,21 @@ export interface BookingEmailDetails {
 
 export interface BookingConfirmationEmailData {
   email: string;
-  firstName: string;
-  lastName: string;
-  name: string;
-  bookingDetails: BookingEmailDetails;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  bookingDetails: {
+    id: string;
+    dateTime: Date;
+    totalAmount: number;
+    depositAmount: number;
+    status: string;
+    paymentStatus: string;
+    serviceName: string;
+    addOnServices: Array<{
+      name: string;
+      price: number;
+    }>;
+    notes?: string;
+  };
 } 

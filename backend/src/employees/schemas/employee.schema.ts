@@ -22,6 +22,19 @@ export class Employee {
 
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop([{
+    dayOfWeek: { type: Number, required: true }, // 0-6 for Sunday-Saturday
+    startTime: { type: String, required: true }, // "HH:mm" format
+    endTime: { type: String, required: true },   // "HH:mm" format
+    isWorkDay: { type: Boolean, default: true }
+  }])
+  workSchedule: {
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    isWorkDay: boolean;
+  }[];
 }
 
 export const EmployeeSchema = SchemaFactory.createForClass(Employee); 

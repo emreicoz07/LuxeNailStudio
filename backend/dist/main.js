@@ -26,7 +26,6 @@ const bookings_module_1 = __webpack_require__(/*! ./bookings/bookings.module */ 
 const stripe_module_1 = __webpack_require__(/*! ./stripe/stripe.module */ "./src/stripe/stripe.module.ts");
 const email_module_1 = __webpack_require__(/*! ./email/email.module */ "./src/email/email.module.ts");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
-const mongoose = __webpack_require__(/*! mongoose */ "mongoose");
 const health_controller_1 = __webpack_require__(/*! ./health/health.controller */ "./src/health/health.controller.ts");
 const employees_module_1 = __webpack_require__(/*! ./employees/employees.module */ "./src/employees/employees.module.ts");
 let AppModule = class AppModule {
@@ -37,6 +36,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
+                envFilePath: '.env',
             }),
             schedule_1.ScheduleModule.forRoot(),
             mongoose_1.MongooseModule.forRootAsync({
@@ -46,25 +46,11 @@ exports.AppModule = AppModule = __decorate([
                     if (!uri) {
                         throw new Error('MONGODB_URI is not defined');
                     }
-                    const options = {
-                        retryWrites: true,
-                        dbName: 'nail-studio',
-                    };
-                    try {
-                        const connection = await mongoose.connect(uri, options);
-                        common_1.Logger.log('Successfully connected to MongoDB');
-                        if (connection.connection.db) {
-                            const collections = await connection.connection.db.listCollections().toArray();
-                            common_1.Logger.log(`Available collections: ${collections.map(c => c.name).join(', ')}`);
-                        }
-                    }
-                    catch (error) {
-                        common_1.Logger.error(`Failed to connect to MongoDB: ${error.message}`);
-                        throw error;
-                    }
                     return {
                         uri,
-                        ...options
+                        dbName: 'nail-studio',
+                        useNewUrlParser: true,
+                        useUnifiedTopology: true,
                     };
                 },
                 inject: [config_1.ConfigService],
@@ -230,9 +216,9 @@ exports.AuthModule = AuthModule = __decorate([
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => ({
-                    secret: configService.get('JWT_SECRET') || 'your-secret-key',
+                    secret: configService.get('JWT_SECRET'),
                     signOptions: {
-                        expiresIn: configService.get('JWT_EXPIRATION') || '24h',
+                        expiresIn: '24h',
                     },
                 }),
                 inject: [config_1.ConfigService],
@@ -241,7 +227,7 @@ exports.AuthModule = AuthModule = __decorate([
         ],
         controllers: [auth_controller_1.AuthController],
         providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],
-        exports: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, passport_1.PassportModule],
+        exports: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, passport_1.PassportModule, jwt_1.JwtModule],
     })
 ], AuthModule);
 
@@ -678,14 +664,37 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var JwtAuthGuard_1;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.JwtAuthGuard = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
 const passport_1 = __webpack_require__(/*! @nestjs/passport */ "@nestjs/passport");
-let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
+const common_2 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+let JwtAuthGuard = JwtAuthGuard_1 = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
+    constructor() {
+        super(...arguments);
+        this.logger = new common_2.Logger(JwtAuthGuard_1.name);
+    }
+    async canActivate(context) {
+        try {
+            const result = (await super.canActivate(context));
+            return result;
+        }
+        catch (error) {
+            this.logger.error('JWT Authentication failed:', error);
+            throw new common_1.UnauthorizedException('Authentication failed');
+        }
+    }
+    handleRequest(err, user, info) {
+        if (err || !user) {
+            this.logger.error('JWT validation failed:', { error: err, info });
+            throw new common_1.UnauthorizedException('Please login to access this resource. ' + (info?.message || err?.message));
+        }
+        return user;
+    }
 };
 exports.JwtAuthGuard = JwtAuthGuard;
-exports.JwtAuthGuard = JwtAuthGuard = __decorate([
+exports.JwtAuthGuard = JwtAuthGuard = JwtAuthGuard_1 = __decorate([
     (0, common_1.Injectable)()
 ], JwtAuthGuard);
 
@@ -845,22 +854,22 @@ const passport_jwt_1 = __webpack_require__(/*! passport-jwt */ "passport-jwt");
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(configService) {
+        const jwtSecret = configService.get('JWT_SECRET');
+        if (!jwtSecret) {
+            throw new Error('JWT_SECRET is not defined');
+        }
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: configService.get('JWT_SECRET') || 'your-secret-key',
+            secretOrKey: jwtSecret,
         });
         this.configService = configService;
     }
     async validate(payload) {
-        if (!payload.userId) {
-            throw new common_1.UnauthorizedException('Invalid token payload');
-        }
         return {
-            userId: payload.userId,
+            userId: payload.sub,
             email: payload.email,
-            role: payload.role,
-            _id: payload.userId
+            role: payload.role
         };
     }
 };
@@ -914,7 +923,7 @@ let BookingsController = BookingsController_1 = class BookingsController {
     }
     async create(req, createBookingDto) {
         try {
-            if (!req.user) {
+            if (!req.user?.userId) {
                 throw new common_1.UnauthorizedException('User not authenticated');
             }
             this.logger.debug(`Creating booking for user: ${req.user.userId}, service: ${createBookingDto.serviceId}`);
@@ -927,33 +936,75 @@ let BookingsController = BookingsController_1 = class BookingsController {
         }
         catch (error) {
             this.logger.error(`Error creating booking: ${error.message}`, error.stack);
-            if (error instanceof common_1.UnauthorizedException) {
-                throw new common_1.UnauthorizedException('Please log in to make a booking');
-            }
             throw error;
         }
     }
     async getBooking(req, id) {
-        return this.bookingsService.findOne(id, req.user._id.toString());
+        this.logger.debug(`Getting booking ${id} for user ${req.user?.userId}`);
+        if (!req.user?.userId) {
+            this.logger.error('User not found in request');
+            throw new common_1.UnauthorizedException('User not authenticated');
+        }
+        try {
+            const booking = await this.bookingsService.findOne(id, req.user.userId);
+            return booking;
+        }
+        catch (error) {
+            this.logger.error(`Error getting booking: ${error.message}`, error.stack);
+            throw error;
+        }
     }
     async cancelBooking(req, id) {
-        const booking = await this.bookingsService.cancel(id, req.user._id.toString());
-        if (booking.paymentId && booking.paymentStatus !== 'UNPAID') {
-            await this.stripeService.createRefund(booking.paymentId);
+        try {
+            if (!req.user?.userId) {
+                throw new common_1.UnauthorizedException('User not authenticated');
+            }
+            const booking = await this.bookingsService.cancel(id, req.user.userId);
+            if (booking.paymentId && booking.paymentStatus !== 'UNPAID') {
+                await this.stripeService.createRefund(booking.paymentId);
+            }
+            return booking;
         }
-        return booking;
+        catch (error) {
+            this.logger.error(`Error canceling booking: ${error.message}`, error.stack);
+            throw error;
+        }
     }
     async checkServiceStatus(serviceId) {
-        const service = await this.serviceModel.findById(serviceId);
-        if (!service) {
-            throw new common_1.NotFoundException('Service not found');
+        try {
+            const service = await this.serviceModel.findById(serviceId);
+            if (!service) {
+                throw new common_1.NotFoundException('Service not found');
+            }
+            return {
+                id: service._id,
+                name: service.name,
+                isActive: service.isActive,
+                exists: true
+            };
         }
-        return {
-            id: service._id,
-            name: service.name,
-            isActive: service.isActive,
-            exists: true
-        };
+        catch (error) {
+            this.logger.error(`Error checking service status: ${error.message}`, error.stack);
+            throw error;
+        }
+    }
+    async getAvailableTimeSlots(date, employeeId, serviceId) {
+        try {
+            return this.bookingsService.getAvailableTimeSlots(date, employeeId, serviceId);
+        }
+        catch (error) {
+            this.logger.error(`Error getting available time slots: ${error.message}`, error.stack);
+            throw error;
+        }
+    }
+    async getWorkingHours() {
+        try {
+            return this.bookingsService.getWorkingHours();
+        }
+        catch (error) {
+            this.logger.error(`Error getting working hours: ${error.message}`, error.stack);
+            throw error;
+        }
     }
 };
 exports.BookingsController = BookingsController;
@@ -976,6 +1027,7 @@ __decorate([
 ], BookingsController.prototype, "getBooking", null);
 __decorate([
     (0, common_1.Put)(':id/cancel'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -989,8 +1041,24 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], BookingsController.prototype, "checkServiceStatus", null);
+__decorate([
+    (0, common_1.Get)('available-slots'),
+    __param(0, (0, common_1.Query)('date')),
+    __param(1, (0, common_1.Query)('employeeId')),
+    __param(2, (0, common_1.Query)('serviceId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", Promise)
+], BookingsController.prototype, "getAvailableTimeSlots", null);
+__decorate([
+    (0, common_1.Get)('working-hours'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], BookingsController.prototype, "getWorkingHours", null);
 exports.BookingsController = BookingsController = BookingsController_1 = __decorate([
     (0, common_1.Controller)('bookings'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(2, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
     __metadata("design:paramtypes", [typeof (_a = typeof bookings_service_1.BookingsService !== "undefined" && bookings_service_1.BookingsService) === "function" ? _a : Object, typeof (_b = typeof stripe_service_1.StripeService !== "undefined" && stripe_service_1.StripeService) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object])
 ], BookingsController);
@@ -1027,6 +1095,8 @@ const email_module_1 = __webpack_require__(/*! ../email/email.module */ "./src/e
 const config_1 = __webpack_require__(/*! @nestjs/config */ "@nestjs/config");
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const appointment_schema_1 = __webpack_require__(/*! ./schemas/appointment.schema */ "./src/bookings/schemas/appointment.schema.ts");
+const employee_schema_1 = __webpack_require__(/*! ./schemas/employee.schema */ "./src/bookings/schemas/employee.schema.ts");
+const working_hours_schema_1 = __webpack_require__(/*! ./schemas/working-hours.schema */ "./src/bookings/schemas/working-hours.schema.ts");
 let BookingsModule = class BookingsModule {
 };
 exports.BookingsModule = BookingsModule;
@@ -1039,6 +1109,8 @@ exports.BookingsModule = BookingsModule = __decorate([
                 { name: category_schema_1.Category.name, schema: category_schema_1.CategorySchema },
                 { name: addon_schema_1.AddOn.name, schema: addon_schema_1.AddOnSchema },
                 { name: appointment_schema_1.Appointment.name, schema: appointment_schema_1.AppointmentSchema },
+                { name: employee_schema_1.Employee.name, schema: employee_schema_1.EmployeeSchema },
+                { name: working_hours_schema_1.WorkingHours.name, schema: working_hours_schema_1.WorkingHoursSchema }
             ]),
             stripe_module_1.StripeModule,
             auth_module_1.AuthModule,
@@ -1075,7 +1147,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var BookingsService_1;
-var _a, _b, _c, _d, _e, _f;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BookingsService = void 0;
 const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
@@ -1089,14 +1161,20 @@ const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule
 const date_fns_1 = __webpack_require__(/*! date-fns */ "date-fns");
 const service_schema_1 = __webpack_require__(/*! ./schemas/service.schema */ "./src/bookings/schemas/service.schema.ts");
 const addon_schema_1 = __webpack_require__(/*! ./schemas/addon.schema */ "./src/bookings/schemas/addon.schema.ts");
+const employee_schema_1 = __webpack_require__(/*! ./schemas/employee.schema */ "./src/bookings/schemas/employee.schema.ts");
+const stripe_service_1 = __webpack_require__(/*! ../stripe/stripe.service */ "./src/stripe/stripe.service.ts");
+const working_hours_schema_1 = __webpack_require__(/*! ./schemas/working-hours.schema */ "./src/bookings/schemas/working-hours.schema.ts");
 let BookingsService = BookingsService_1 = class BookingsService {
-    constructor(appointmentModel, bookingModel, serviceModel, addOnModel, emailService, configService) {
+    constructor(appointmentModel, bookingModel, serviceModel, addOnModel, emailService, configService, employeeModel, stripeService, workingHoursModel) {
         this.appointmentModel = appointmentModel;
         this.bookingModel = bookingModel;
         this.serviceModel = serviceModel;
         this.addOnModel = addOnModel;
         this.emailService = emailService;
         this.configService = configService;
+        this.employeeModel = employeeModel;
+        this.stripeService = stripeService;
+        this.workingHoursModel = workingHoursModel;
         this.logger = new common_1.Logger(BookingsService_1.name);
     }
     async validateAddOns(addOnIds) {
@@ -1161,9 +1239,9 @@ let BookingsService = BookingsService_1 = class BookingsService {
             }
             await this.emailService.sendBookingConfirmation({
                 email: user.email,
-                name: user.name,
-                firstName: user.firstName,
-                lastName: user.lastName,
+                name: user.name || '',
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
                 bookingDetails: {
                     id: populatedBooking._id.toString(),
                     dateTime: populatedBooking.dateTime,
@@ -1261,6 +1339,78 @@ let BookingsService = BookingsService_1 = class BookingsService {
             paymentStatus: status,
         });
     }
+    async getAvailableTimeSlots(date, employeeId, serviceId) {
+        try {
+            const workSchedule = await this.employeeModel.findOne({
+                _id: new mongoose_2.Types.ObjectId(employeeId),
+                'workSchedule.dayOfWeek': new Date(date).getDay()
+            }).select('workSchedule.$');
+            if (!workSchedule || !workSchedule.workSchedule?.[0]) {
+                this.logger.warn(`No work schedule found for employee ${employeeId} on ${date}`);
+                return [];
+            }
+            const service = await this.serviceModel.findById(serviceId);
+            if (!service) {
+                throw new common_1.NotFoundException('Service not found');
+            }
+            const startOfDay = new Date(`${date}T00:00:00`);
+            const endOfDay = new Date(`${date}T23:59:59`);
+            const existingBookings = await this.bookingModel.find({
+                employeeId: new mongoose_2.Types.ObjectId(employeeId),
+                dateTime: {
+                    $gte: startOfDay,
+                    $lt: endOfDay
+                },
+                status: {
+                    $in: ['CONFIRMED', 'PENDING']
+                }
+            }).sort({ dateTime: 1 });
+            const { startTime, endTime } = workSchedule.workSchedule[0];
+            const slots = this.generateTimeSlots(startTime, endTime, service.duration, existingBookings, date);
+            return slots;
+        }
+        catch (error) {
+            this.logger.error(`Error getting available time slots: ${error.message}`);
+            throw new common_1.InternalServerErrorException('Failed to get available time slots');
+        }
+    }
+    generateTimeSlots(startTime, endTime, serviceDuration, existingBookings, date) {
+        const slots = [];
+        const start = new Date(`${date}T${startTime}`);
+        const end = new Date(`${date}T${endTime}`);
+        let currentSlot = new Date(start);
+        while (currentSlot <= end) {
+            const slotEnd = new Date(currentSlot.getTime() + serviceDuration * 60000);
+            const isSlotAvailable = !existingBookings.some(booking => {
+                const bookingStart = new Date(booking.dateTime);
+                const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+                return ((currentSlot >= bookingStart && currentSlot < bookingEnd) ||
+                    (slotEnd > bookingStart && slotEnd <= bookingEnd));
+            });
+            if (isSlotAvailable && slotEnd <= end) {
+                slots.push(currentSlot.toISOString());
+            }
+            currentSlot = new Date(currentSlot.getTime() + 15 * 60000);
+        }
+        return slots;
+    }
+    async getWorkingHours() {
+        try {
+            const workingHours = await this.workingHoursModel.find().exec();
+            return workingHours.reduce((acc, day) => {
+                acc[day.dayOfWeek] = {
+                    isOpen: day.isOpen,
+                    openTime: day.openTime,
+                    closeTime: day.closeTime
+                };
+                return acc;
+            }, {});
+        }
+        catch (error) {
+            this.logger.error('Failed to fetch working hours:', error);
+            throw new common_1.InternalServerErrorException('Could not retrieve working hours');
+        }
+    }
 };
 exports.BookingsService = BookingsService;
 __decorate([
@@ -1275,7 +1425,9 @@ exports.BookingsService = BookingsService = BookingsService_1 = __decorate([
     __param(1, (0, mongoose_1.InjectModel)(booking_schema_1.Booking.name)),
     __param(2, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
     __param(3, (0, mongoose_1.InjectModel)(addon_schema_1.AddOn.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _d : Object, typeof (_e = typeof email_service_1.EmailService !== "undefined" && email_service_1.EmailService) === "function" ? _e : Object, typeof (_f = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _f : Object])
+    __param(6, (0, mongoose_1.InjectModel)(employee_schema_1.Employee.name)),
+    __param(8, (0, mongoose_1.InjectModel)(working_hours_schema_1.WorkingHours.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object, typeof (_c = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _c : Object, typeof (_d = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _d : Object, typeof (_e = typeof email_service_1.EmailService !== "undefined" && email_service_1.EmailService) === "function" ? _e : Object, typeof (_f = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _f : Object, typeof (_g = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _g : Object, typeof (_h = typeof stripe_service_1.StripeService !== "undefined" && stripe_service_1.StripeService) === "function" ? _h : Object, typeof (_j = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _j : Object])
 ], BookingsService);
 
 
@@ -1640,6 +1792,66 @@ exports.CategorySchema.index({ isActive: 1 });
 
 /***/ }),
 
+/***/ "./src/bookings/schemas/employee.schema.ts":
+/*!*************************************************!*\
+  !*** ./src/bookings/schemas/employee.schema.ts ***!
+  \*************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmployeeSchema = exports.Employee = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+let Employee = class Employee {
+};
+exports.Employee = Employee;
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "name", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, unique: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "email", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Employee.prototype, "phone", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [{
+                dayOfWeek: { type: Number, required: true },
+                startTime: { type: String, required: true },
+                endTime: { type: String, required: true },
+                isOpen: { type: Boolean, default: true }
+            }] }),
+    __metadata("design:type", Array)
+], Employee.prototype, "workSchedule", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], Employee.prototype, "isActive", void 0);
+__decorate([
+    (0, mongoose_1.Prop)([{ type: mongoose_2.Schema.Types.ObjectId, ref: 'Service' }]),
+    __metadata("design:type", Array)
+], Employee.prototype, "services", void 0);
+exports.Employee = Employee = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], Employee);
+exports.EmployeeSchema = mongoose_1.SchemaFactory.createForClass(Employee);
+
+
+/***/ }),
+
 /***/ "./src/bookings/schemas/service.schema.ts":
 /*!************************************************!*\
   !*** ./src/bookings/schemas/service.schema.ts ***!
@@ -1704,6 +1916,52 @@ exports.Service = Service = __decorate([
 exports.ServiceSchema = mongoose_1.SchemaFactory.createForClass(Service);
 exports.ServiceSchema.index({ category: 1 });
 exports.ServiceSchema.index({ isActive: 1 });
+
+
+/***/ }),
+
+/***/ "./src/bookings/schemas/working-hours.schema.ts":
+/*!******************************************************!*\
+  !*** ./src/bookings/schemas/working-hours.schema.ts ***!
+  \******************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WorkingHoursSchema = exports.WorkingHours = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+let WorkingHours = class WorkingHours {
+};
+exports.WorkingHours = WorkingHours;
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, unique: true }),
+    __metadata("design:type", String)
+], WorkingHours.prototype, "dayOfWeek", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, default: true }),
+    __metadata("design:type", Boolean)
+], WorkingHours.prototype, "isOpen", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], WorkingHours.prototype, "openTime", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], WorkingHours.prototype, "closeTime", void 0);
+exports.WorkingHours = WorkingHours = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], WorkingHours);
+exports.WorkingHoursSchema = mongoose_1.SchemaFactory.createForClass(WorkingHours);
 
 
 /***/ }),
@@ -2306,6 +2564,15 @@ __decorate([
     (0, mongoose_1.Prop)({ default: true }),
     __metadata("design:type", Boolean)
 ], Employee.prototype, "isActive", void 0);
+__decorate([
+    (0, mongoose_1.Prop)([{
+            dayOfWeek: { type: Number, required: true },
+            startTime: { type: String, required: true },
+            endTime: { type: String, required: true },
+            isWorkDay: { type: Boolean, default: true }
+        }]),
+    __metadata("design:type", Array)
+], Employee.prototype, "workSchedule", void 0);
 exports.Employee = Employee = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Employee);

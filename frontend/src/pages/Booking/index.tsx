@@ -108,6 +108,12 @@ const BookingPage: React.FC = () => {
     enabled: !!selectedService,
   });
 
+  const { data: workingHours } = useQuery({
+    queryKey: ['workingHours'],
+    queryFn: () => bookingApi.getWorkingHours(),
+    staleTime: Infinity, // Çalışma saatleri nadiren değişeceği için cache'de tutalım
+  });
+
   useEffect(() => {
     if (addonsData) {
       const transformedAddons = addonsData.map((addon: any) => ({
@@ -311,12 +317,26 @@ const BookingPage: React.FC = () => {
   }, [selectedService]);
 
   useEffect(() => {
-    const loadSlots = async () => {
-      const timeSlots = await generateTimeSlots(selectedDate);
-      setTimeSlots(timeSlots);
+    const fetchTimeSlots = async () => {
+      if (!selectedDate || !selectedEmployee || !selectedService) return;
+
+      try {
+        setTimeSlots([]); // Önceki slotları temizle
+        const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+        const slots = await bookingApi.getAvailableTimeSlots(
+          formattedDate,
+          selectedEmployee,
+          selectedService
+        );
+        setTimeSlots(slots);
+      } catch (error) {
+        console.error('Error fetching time slots:', error);
+        toast.error('Failed to load available time slots');
+      }
     };
-    loadSlots();
-  }, [selectedDate]);
+
+    fetchTimeSlots();
+  }, [selectedDate, selectedEmployee, selectedService]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -350,61 +370,13 @@ const BookingPage: React.FC = () => {
     return addOns;
   }, [selectedService, addOns]);
 
-  const generateTimeSlots = async (selectedDate: Date): Promise<TimeSlot[]> => {
-    if (!selectedEmployee) return [];
-
-    try {
-      const availableSlots = await bookingApi.getEmployeeAvailability(
-        selectedEmployee,
-        format(selectedDate, 'yyyy-MM-dd')
-      );
-
-      return availableSlots.map((slot: any) => ({
-        time: format(new Date(slot.time), 'h:mm a'),
-        available: slot.available
-      }));
-    } catch (error) {
-      console.error('Error fetching time slots:', error);
-      return [];
-    }
-  };
-
-  // Add-ons bölümü görüntülendiğinde
-  const handleAddonsInView = () => {
-    setHasViewedAddons(true);
-  };
-
-  // Next butonunu güncelle
-  const renderNextButton = () => {
-    if (currentStep === 'service' && !hasViewedAddons) {
-      return (
-        <button
-          onClick={() => addOnsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-          className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-        >
-          Check Additional Services
-        </button>
-      );
-    }
-
-    return (
-      <button
-        onClick={() => handleStepTransition(getNextStep())}
-        className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-      >
-        Next
-      </button>
-    );
-  };
-
-  // Tarih seçimi için fonksiyon
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
     setSelectedTime(''); // Yeni tarih seçildiğinde seçili saati sıfırla
     setTimeSlots([]); // Zaman slotlarını sıfırla
   };
 
-  // datetime adımı için render fonksiyonu
+  // datetime adımı için render fonksiyonu güncelleme
   const renderDateTimeStep = () => {
     return (
       <motion.div
@@ -431,7 +403,9 @@ const BookingPage: React.FC = () => {
                 isBefore(date, minDate) ? "text-gray-300" : "hover:bg-primary-100"
               }
               filterDate={date => {
-                return date.getDay() !== 0; // Pazar günlerini devre dışı bırak
+                // Pazar günlerini ve çalışma günü olmayan günleri devre dışı bırak
+                const dayOfWeek = format(date, 'EEEE').toUpperCase();
+                return workingHours?.[dayOfWeek]?.isOpen ?? false;
               }}
             />
           </div>
@@ -440,29 +414,54 @@ const BookingPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-lg font-medium mb-4">Available Time Slots</h3>
             {selectedDate ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {timeSlots.map((slot) => (
-                  <button
-                    key={slot.time}
-                    onClick={() => setSelectedTime(slot.time)}
-                    disabled={!slot.available}
-                    className={`
-                      p-3 rounded-lg text-center transition-colors
-                      ${selectedTime === slot.time
-                        ? 'bg-primary-500 text-white'
-                        : slot.available
-                          ? 'bg-gray-100 hover:bg-primary-100'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }
-                    `}
-                  >
-                    {slot.time}
-                  </button>
-                ))}
-              </div>
+              timeSlots.length > 0 ? (
+                <div className="grid grid-cols-3 gap-3">
+                  {timeSlots.map((slot) => (
+                    <button
+                      key={slot.time}
+                      onClick={() => setSelectedTime(slot.time)}
+                      disabled={!slot.available}
+                      className={`
+                        p-3 rounded-lg text-center transition-colors
+                        ${selectedTime === slot.time
+                          ? 'bg-primary-500 text-white'
+                          : slot.available
+                            ? 'bg-gray-100 hover:bg-primary-100'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      {slot.time}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Loading available time slots...
+                </div>
+              )
             ) : (
-              <div className="text-gray-500 text-center py-8">
+              <div className="text-center py-8 text-gray-500">
                 Please select a date to see available time slots
+              </div>
+            )}
+
+            {/* Çalışma Saatleri Bilgisi */}
+            {selectedDate && workingHours && (
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-600 mb-2">
+                  Working Hours for {format(selectedDate, 'EEEE')}
+                </h4>
+                {(() => {
+                  const dayHours = workingHours[format(selectedDate, 'EEEE').toUpperCase()];
+                  return dayHours?.isOpen ? (
+                    <p className="text-sm text-gray-500">
+                      {dayHours.openTime} - {dayHours.closeTime}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-red-500">Closed</p>
+                  );
+                })()}
               </div>
             )}
           </div>

@@ -15,7 +15,7 @@
             "tests": { "description": "Unit and integration tests" }
           }
         },
-        "prisma": { "description": "Prisma schema and migration files" },
+
         "docs": { "description": "API documentation (Swagger, Postman collections, etc.)" }
       }
     },

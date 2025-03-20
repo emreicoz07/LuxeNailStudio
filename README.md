@@ -7,7 +7,7 @@ A modern, responsive web application for a professional nail studio that allows 
 ### Backend:
 
 TypeScript with Nest.js/Express.js
-Prisma ORM & Mongoose
+Mongoose
 JWT-based authentication
 Swagger for API documentation
 Winston for logging
@@ -25,7 +25,6 @@ Reference:
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/schedule": "^3.0.4",
     "@nestjs/swagger": "^7.4.2",
-    "@prisma/client": "^5.0.0",
     "@tanstack/react-query": "^5.66.0",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",

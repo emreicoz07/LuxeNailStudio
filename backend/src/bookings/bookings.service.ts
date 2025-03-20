@@ -13,6 +13,9 @@ import { AddOn, AddOnDocument } from './schemas/addon.schema';
 import { UserFromRequest } from '../auth/interfaces/auth.interface';
 import { BookingConfirmationEmailData } from '../email/interfaces/email.interface';
 import { Document } from 'mongoose';
+import { Employee, EmployeeDocument } from './schemas/employee.schema';
+import { StripeService } from '../stripe/stripe.service';
+import { WorkingHours, WorkingHoursDocument } from './schemas/working-hours.schema';
 
 @Injectable()
 export class BookingsService {
@@ -21,10 +24,13 @@ export class BookingsService {
   constructor(
     @InjectModel(Appointment.name) private appointmentModel: Model<Appointment>,
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
-    @InjectModel(Service.name) private serviceModel: Model<Service>,
+    @InjectModel(Service.name) private serviceModel: Model<ServiceDocument>,
     @InjectModel(AddOn.name) private addOnModel: Model<AddOn>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
+    private readonly stripeService: StripeService,
+    @InjectModel(WorkingHours.name) private workingHoursModel: Model<WorkingHoursDocument>,
   ) {}
 
   private async validateAddOns(addOnIds: string[]): Promise<AddOnDocument[]> {
@@ -105,9 +111,9 @@ export class BookingsService {
       // Send confirmation email
       await this.emailService.sendBookingConfirmation({
         email: user.email,
-        name: user.name,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        name: user.name || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         bookingDetails: {
           id: populatedBooking._id.toString(),
           dateTime: populatedBooking.dateTime,
@@ -225,5 +231,113 @@ export class BookingsService {
     await this.bookingModel.findByIdAndUpdate(bookingId, {
       paymentStatus: status,
     });
+  }
+
+  async getAvailableTimeSlots(date: string, employeeId: string, serviceId: string) {
+    try {
+      // Get employee's work schedule from MongoDB
+      const workSchedule = await this.employeeModel.findOne({
+        _id: new Types.ObjectId(employeeId),
+        'workSchedule.dayOfWeek': new Date(date).getDay()
+      }).select('workSchedule.$');
+
+      if (!workSchedule || !workSchedule.workSchedule?.[0]) {
+        this.logger.warn(`No work schedule found for employee ${employeeId} on ${date}`);
+        return [];
+      }
+
+      // Get service details
+      const service = await this.serviceModel.findById(serviceId);
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      // Get existing bookings for that day
+      const startOfDay = new Date(`${date}T00:00:00`);
+      const endOfDay = new Date(`${date}T23:59:59`);
+
+      const existingBookings = await this.bookingModel.find({
+        employeeId: new Types.ObjectId(employeeId),
+        dateTime: {
+          $gte: startOfDay,
+          $lt: endOfDay
+        },
+        status: {
+          $in: ['CONFIRMED', 'PENDING']
+        }
+      }).sort({ dateTime: 1 });
+
+      // Calculate available time slots
+      const { startTime, endTime } = workSchedule.workSchedule[0];
+      const slots = this.generateTimeSlots(
+        startTime,
+        endTime,
+        service.duration,
+        existingBookings,
+        date
+      );
+
+      return slots;
+    } catch (error) {
+      this.logger.error(`Error getting available time slots: ${error.message}`);
+      throw new InternalServerErrorException('Failed to get available time slots');
+    }
+  }
+
+  // Helper method to generate time slots
+  private generateTimeSlots(
+    startTime: string,
+    endTime: string,
+    serviceDuration: number,
+    existingBookings: BookingDocument[],
+    date: string
+  ): string[] {
+    const slots: string[] = [];
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    
+    let currentSlot = new Date(start);
+    
+    while (currentSlot <= end) {
+      const slotEnd = new Date(currentSlot.getTime() + serviceDuration * 60000);
+      
+      // Check if slot conflicts with existing bookings
+      const isSlotAvailable = !existingBookings.some(booking => {
+        const bookingStart = new Date(booking.dateTime);
+        const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+        return (
+          (currentSlot >= bookingStart && currentSlot < bookingEnd) ||
+          (slotEnd > bookingStart && slotEnd <= bookingEnd)
+        );
+      });
+
+      if (isSlotAvailable && slotEnd <= end) {
+        slots.push(currentSlot.toISOString());
+      }
+
+      // Move to next slot (15-minute intervals)
+      currentSlot = new Date(currentSlot.getTime() + 15 * 60000);
+    }
+
+    return slots;
+  }
+
+  async getWorkingHours() {
+    try {
+      const workingHours = await this.workingHoursModel.find().exec();
+      
+      // Günleri key-value formatına dönüştür
+      return workingHours.reduce((acc: Record<string, any>, day) => {
+        acc[day.dayOfWeek] = {
+          isOpen: day.isOpen,
+          openTime: day.openTime,
+          closeTime: day.closeTime
+        };
+        return acc;
+      }, {} as Record<string, any>);
+    } catch (error) {
+      this.logger.error('Failed to fetch working hours:', error);
+      throw new InternalServerErrorException('Could not retrieve working hours');
+    }
   }
 } 
