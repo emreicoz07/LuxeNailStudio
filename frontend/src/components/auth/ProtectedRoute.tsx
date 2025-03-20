@@ -7,9 +7,16 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const auth = useAuth();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
+
+  // Eğer auth context null ise, login sayfasına yönlendir
+  if (!auth) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const { user, isAuthenticated } = auth;
 
   useEffect(() => {
     const checkAuth = async () => {

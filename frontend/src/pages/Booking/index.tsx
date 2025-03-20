@@ -39,32 +39,6 @@ interface TimeSlot {
 }
 
 
-const ScrollIndicator: React.FC = () => (
-  <motion.div
-    initial={{ opacity: 0, y: 0 }}
-    animate={{ opacity: 1, y: [0, 10, 0] }}
-    transition={{ 
-      duration: 1.5,
-      repeat: Infinity,
-      repeatType: "reverse"
-    }}
-    className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-primary-500"
-  >
-    <svg 
-      className="w-6 h-6"
-      fill="none" 
-      stroke="currentColor" 
-      viewBox="0 0 24 24"
-    >
-      <path 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        strokeWidth={2} 
-        d="M19 14l-7 7m0 0l-7-7m7 7V3"
-      />
-    </svg>
-  </motion.div>
-);
 
 const BookingPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<BookingStep>('category');
@@ -318,13 +292,6 @@ const BookingPage: React.FC = () => {
   };
 
 
-  const handleAddOnSelect = (addOnId: string) => {
-    setSelectedAddOns(prev => 
-      prev.includes(addOnId)
-        ? prev.filter(id => id !== addOnId)
-        : [...prev, addOnId]
-    );
-  };
 
   useEffect(() => {
     if (services) {

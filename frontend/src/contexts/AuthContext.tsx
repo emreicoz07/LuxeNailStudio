@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { toast } from 'react-hot-toast';
-import { jwtDecode } from 'jwt-decode';
 
 interface User {
   id: string;
@@ -21,6 +20,11 @@ interface RegisterData {
   confirmPassword: string;
   subscribe: boolean;
   agreeToTerms: boolean;
+}
+
+export interface AuthResponse {
+  user: User;
+  token: string;
 }
 
 interface AuthContextType {
@@ -93,10 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       clearError();
-      const response = await authService.register(data);
+      const response: AuthResponse = await authService.register(data);
       setUser(response.user);
       setIsAuthenticated(true);
-      return response;
     } catch (err: any) {
       const errorMessage = err.message || 'Registration failed. Please try again.';
       setError(errorMessage);
@@ -111,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       clearError();
-      const response = await authService.login({ email, password });
+      const response: AuthResponse = await authService.login({ email, password });
       
       // Ensure we have a token in the response
       if (!response.token) {
@@ -143,10 +146,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       localStorage.removeItem('token');
       
-      // Show success message
+      // Toast ayarlarını hot-toast'a uygun şekilde güncelleyelim
       toast.success('Logged out successfully', {
-        position: "top-right",
-        autoClose: 3000,
+        duration: 3000, // autoClose yerine duration kullanılıyor
+        position: "top-right"
       });
       
       // Force reload to clear any cached data
