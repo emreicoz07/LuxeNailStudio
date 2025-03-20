@@ -161,13 +161,17 @@ const BookingPage: React.FC = () => {
     setSelectedService(serviceId);
     setSelectedAddOns([]);
     
-    // Scroll to add-ons section with offset for the sticky header
+    // Scroll to add-ons section with offset for the header
     setTimeout(() => {
       if (addOnsSectionRef.current) {
-        const yOffset = -100; // Başlığın sticky kalması için offset
-        const element = addOnsSectionRef.current;
-        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
+        const offset = 100; // Header ve navigation için boşluk
+        const elementPosition = addOnsSectionRef.current.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
       }
     }, 100);
   };
@@ -508,78 +512,74 @@ const BookingPage: React.FC = () => {
               className="space-y-6 mt-8"
               ref={addOnsSectionRef}
             >
-              <div className="border-t border-gray-200">
-                <div className="sticky top-0 bg-white z-10 py-4 shadow-sm">
-                  <h2 className="text-2xl font-semibold">Additional Services</h2>
-                </div>
+              <div className="border-t border-gray-200 pt-8">
+                <h2 className="text-2xl font-semibold mb-6">Additional Services</h2>
                 
-                <div className="pt-6">
-                  {isLoadingAddOns ? (
-                    <div className="flex justify-center">
-                      <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin"></div>
-                    </div>
-                  ) : filteredAddOns && filteredAddOns.length > 0 ? (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {filteredAddOns.map((addon) => (
-                        <div
-                          key={addon.id}
-                          onClick={() => {
-                            setSelectedAddOns(prev =>
-                              prev.includes(addon.id)
-                                ? prev.filter(id => id !== addon.id)
-                                : [...prev, addon.id]
-                            );
-                          }}
-                          className={`
-                            p-4 rounded-lg border-2 transition-all duration-300 cursor-pointer
-                            ${selectedAddOns.includes(addon.id)
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-primary-200'
-                            }
-                          `}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-semibold">{addon.name}</h3>
-                              <span className="font-medium text-primary-600">${addon.price}</span>
-                            </div>
-                            <p className="text-sm text-gray-600">{addon.description}</p>
-                            <div className="flex justify-between items-center text-sm text-gray-500">
-                              <span>Duration: {addon.duration} min</span>
-                              {selectedAddOns.includes(addon.id) && (
-                                <span className="text-primary-500">Selected</span>
-                              )}
-                            </div>
+                {isLoadingAddOns ? (
+                  <div className="flex justify-center">
+                    <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin"></div>
+                  </div>
+                ) : filteredAddOns && filteredAddOns.length > 0 ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredAddOns.map((addon) => (
+                      <div
+                        key={addon.id}
+                        onClick={() => {
+                          setSelectedAddOns(prev =>
+                            prev.includes(addon.id)
+                              ? prev.filter(id => id !== addon.id)
+                              : [...prev, addon.id]
+                          );
+                        }}
+                        className={`
+                          p-4 rounded-lg border-2 transition-all duration-300 cursor-pointer
+                          ${selectedAddOns.includes(addon.id)
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-primary-200'
+                          }
+                        `}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-semibold">{addon.name}</h3>
+                            <span className="font-medium text-primary-600">${addon.price}</span>
+                          </div>
+                          <p className="text-sm text-gray-600">{addon.description}</p>
+                          <div className="flex justify-between items-center text-sm text-gray-500">
+                            <span>Duration: {addon.duration} min</span>
+                            {selectedAddOns.includes(addon.id) && (
+                              <span className="text-primary-500">Selected</span>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-gray-500 py-4">
-                      No additional services available for this service.
-                    </p>
-                  )}
-                </div>
-              </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">
+                    No additional services available for this service.
+                  </p>
+                )}
 
-              {/* Navigation Buttons */}
-              <div className="flex justify-between mt-8">
-                <button
-                  onClick={() => {
-                    setSelectedService('');
-                    setSelectedAddOns([]);
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-red-500 transition-colors"
-                >
-                  ← Back to Services
-                </button>
-                
-                <button
-                  onClick={() => setCurrentStep('employee')}
-                  className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-                >
-                  Continue to Select Stylist →
-                </button>
+                {/* Navigation Buttons */}
+                <div className="flex justify-between mt-8">
+                  <button
+                    onClick={() => {
+                      setSelectedService('');
+                      setSelectedAddOns([]);
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-red-500 transition-colors"
+                  >
+                    ← Back to Services
+                  </button>
+                  
+                  <button
+                    onClick={() => setCurrentStep('employee')}
+                    className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+                  >
+                    Continue to Select Stylist →
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}

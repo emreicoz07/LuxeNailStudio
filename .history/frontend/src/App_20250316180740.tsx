@@ -15,7 +15,6 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import ScrollToTop from './components/common/ScrollToTop';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -26,7 +25,6 @@ const App: React.FC = () => {
       <AuthProvider>
         <Toaster position="top-right" />
         <BrowserRouter>
-          <ScrollToTop />
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-grow">
