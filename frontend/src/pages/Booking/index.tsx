@@ -58,6 +58,9 @@ const BookingPage: React.FC = () => {
   const [bookingNotes] = useState('');
   const [timeSlots, setTimeSlots] = useState<Array<{ time: string; available: boolean }>>([]);
 
+  // Add-ons görüntülendiğini takip etmek için yeni state
+  const [hasViewedAddons, setHasViewedAddons] = useState(false);
+
   const categories = [
     {
       id: 'MANICURE',
@@ -128,60 +131,55 @@ const BookingPage: React.FC = () => {
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
     setCurrentStep('service');
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
-  const handleServiceSelect = (serviceId: string) => {
-    console.log('Selected service ID:', serviceId);
-    setSelectedService(serviceId);
-    setSelectedAddOns([]);
+  // Adım geçişlerini kontrol eden fonksiyon
+  const handleStepTransition = (nextStep: BookingStep) => {
+    // Servis seçiminden sonra add-ons görüntülenmeden geçişe izin verme
+    if (currentStep === 'service' && nextStep === 'employee' && !hasViewedAddons) {
+      toast.warning('Please check additional services before proceeding', {
+        duration: 3000,
+        position: "top-right"
+      });
+      // Add-ons bölümüne scroll
+      addOnsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
     
-    // Scroll to add-ons section with offset for the sticky header
-    setTimeout(() => {
-      if (addOnsSectionRef.current) {
-        const yOffset = -100; // Başlığın sticky kalması için offset
-        const element = addOnsSectionRef.current;
-        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      }
-    }, 100);
+    setCurrentStep(nextStep);
+    // Sayfa başına scroll
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Servis seçim fonksiyonunu güncelle
+  const handleServiceSelect = (serviceId: string) => {
+    setSelectedService(serviceId);
+    setHasViewedAddons(false); // Yeni servis seçildiğinde reset
+    // Otomatik geçişi kaldır
+    // setCurrentStep('employee');
   };
 
   const handleEmployeeSelect = (employeeId: string) => {
     setSelectedEmployee(employeeId);
     setCurrentStep('datetime');
-  };
-
-  const filteredAddOns = useMemo(() => {
-    if (!selectedService || !addOns) return [];
-    
-    // No need to filter by category since the backend already handles this
-    // Just return all addons returned from the API
-    return addOns;
-  }, [selectedService, addOns]);
-
-  const generateTimeSlots = async (selectedDate: Date): Promise<TimeSlot[]> => {
-    if (!selectedEmployee) return [];
-
-    try {
-      const availableSlots = await bookingApi.getEmployeeAvailability(
-        selectedEmployee,
-        format(selectedDate, 'yyyy-MM-dd')
-      );
-
-      return availableSlots.map((slot: any) => ({
-        time: format(new Date(slot.time), 'h:mm a'),
-        available: slot.available
-      }));
-    } catch (error) {
-      console.error('Error fetching time slots:', error);
-      return [];
-    }
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
   const handleDateTimeSubmit = () => {
     if (selectedTime) {
       setCurrentStep('summary');
     }
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
   const createBookingMutation = useMutation({
@@ -335,6 +333,69 @@ const BookingPage: React.FC = () => {
 
     checkAuth();
   }, [navigate]);
+
+  // Adım değişikliğinde scroll'u sıfırla
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth' // Yumuşak geçiş için
+    });
+  }, [currentStep]);
+
+  const filteredAddOns = useMemo(() => {
+    if (!selectedService || !addOns) return [];
+    
+    // No need to filter by category since the backend already handles this
+    // Just return all addons returned from the API
+    return addOns;
+  }, [selectedService, addOns]);
+
+  const generateTimeSlots = async (selectedDate: Date): Promise<TimeSlot[]> => {
+    if (!selectedEmployee) return [];
+
+    try {
+      const availableSlots = await bookingApi.getEmployeeAvailability(
+        selectedEmployee,
+        format(selectedDate, 'yyyy-MM-dd')
+      );
+
+      return availableSlots.map((slot: any) => ({
+        time: format(new Date(slot.time), 'h:mm a'),
+        available: slot.available
+      }));
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
+      return [];
+    }
+  };
+
+  // Add-ons bölümü görüntülendiğinde
+  const handleAddonsInView = () => {
+    setHasViewedAddons(true);
+  };
+
+  // Next butonunu güncelle
+  const renderNextButton = () => {
+    if (currentStep === 'service' && !hasViewedAddons) {
+      return (
+        <button
+          onClick={() => addOnsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          Check Additional Services
+        </button>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => handleStepTransition(getNextStep())}
+        className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+      >
+        Next
+      </button>
+    );
+  };
 
   return (
     <Section className="mt-8">
@@ -839,6 +900,19 @@ const BookingPage: React.FC = () => {
       </div>
     </Section>
   );
+};
+
+// Helper fonksiyonlar
+const getNextStep = (currentStep: BookingStep): BookingStep => {
+  const steps: BookingStep[] = ['category', 'service', 'employee', 'datetime', 'summary'];
+  const currentIndex = steps.indexOf(currentStep);
+  return steps[currentIndex + 1];
+};
+
+const getPreviousStep = (currentStep: BookingStep): BookingStep => {
+  const steps: BookingStep[] = ['category', 'service', 'employee', 'datetime', 'summary'];
+  const currentIndex = steps.indexOf(currentStep);
+  return steps[currentIndex - 1];
 };
 
 export default BookingPage; 
