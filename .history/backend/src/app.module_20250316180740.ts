@@ -9,7 +9,6 @@ import { EmailModule } from './email/email.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import * as mongoose from 'mongoose';
 import { HealthController } from './health/health.controller';
-import { EmployeesModule } from './employees/employees.module';
 
 @Module({
   imports: [
@@ -55,7 +54,6 @@ import { EmployeesModule } from './employees/employees.module';
     BookingsModule,
     StripeModule,
     EmailModule,
-    EmployeesModule,
   ],
   controllers: [HealthController],
   providers: [],

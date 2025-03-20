@@ -97,36 +97,5 @@ export const bookingApi = {
       console.error('Error fetching add-ons:', error);
       throw error;
     }
-  },
-
-  getEmployees: async (serviceId: string) => {
-    try {
-      const response = await api.get('/employees', {
-        params: { serviceId }
-      });
-      return response.data.map((employee: any) => ({
-        id: employee._id,
-        name: employee.name,
-        imageUrl: employee.imageUrl,
-        bio: employee.bio,
-        expertise: employee.expertise
-      }));
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      // Return empty array instead of throwing
-      return [];
-    }
-  },
-
-  getEmployeeAvailability: async (employeeId: string, date: string) => {
-    try {
-      const response = await api.get(`/employees/${employeeId}/availability`, {
-        params: { date }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching employee availability:', error);
-      throw error;
-    }
-  },
+  }
 }; 

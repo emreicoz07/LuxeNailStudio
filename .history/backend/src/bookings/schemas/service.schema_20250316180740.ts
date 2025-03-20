@@ -22,11 +22,12 @@ export class Service {
   imageUrl?: string;
 
   @Prop({ 
+    type: String, 
+    enum: ServiceCategory,
     required: true,
-    set: (category: string) => category.toUpperCase(), // Always store as uppercase
-    get: (category: string) => category // Return as stored
+    index: true // Add index for better query performance
   })
-  category: string;
+  category: ServiceCategory;
 
   @Prop({ default: 0 })
   deposit: number;

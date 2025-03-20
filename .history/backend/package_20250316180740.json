@@ -8,8 +8,7 @@
     "start": "nest start",
     "test": "jest",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
-    "seed": "ts-node prisma/seed.ts",
-    "seed:mongo": "ts-node src/seeds/seed-employees.ts"
+    "seed": "nest start --entryFile seed"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

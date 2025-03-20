@@ -28,6 +28,7 @@ const email_module_1 = __webpack_require__(/*! ./email/email.module */ "./src/em
 const schedule_1 = __webpack_require__(/*! @nestjs/schedule */ "@nestjs/schedule");
 const mongoose = __webpack_require__(/*! mongoose */ "mongoose");
 const health_controller_1 = __webpack_require__(/*! ./health/health.controller */ "./src/health/health.controller.ts");
+const employees_module_1 = __webpack_require__(/*! ./employees/employees.module */ "./src/employees/employees.module.ts");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -73,6 +74,7 @@ exports.AppModule = AppModule = __decorate([
             bookings_module_1.BookingsModule,
             stripe_module_1.StripeModule,
             email_module_1.EmailModule,
+            employees_module_1.EmployeesModule,
         ],
         controllers: [health_controller_1.HealthController],
         providers: [],
@@ -1654,11 +1656,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServiceSchema = exports.Service = void 0;
 const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
-const service_category_enum_1 = __webpack_require__(/*! ../enums/service-category.enum */ "./src/bookings/enums/service-category.enum.ts");
 let Service = class Service {
 };
 exports.Service = Service;
@@ -1684,12 +1684,11 @@ __decorate([
 ], Service.prototype, "imageUrl", void 0);
 __decorate([
     (0, mongoose_1.Prop)({
-        type: String,
-        enum: service_category_enum_1.ServiceCategory,
         required: true,
-        index: true
+        set: (category) => category.toUpperCase(),
+        get: (category) => category
     }),
-    __metadata("design:type", typeof (_a = typeof service_category_enum_1.ServiceCategory !== "undefined" && service_category_enum_1.ServiceCategory) === "function" ? _a : Object)
+    __metadata("design:type", String)
 ], Service.prototype, "category", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: 0 }),
@@ -2100,6 +2099,217 @@ exports.EmailService = EmailService = EmailService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object])
 ], EmailService);
+
+
+/***/ }),
+
+/***/ "./src/employees/employees.controller.ts":
+/*!***********************************************!*\
+  !*** ./src/employees/employees.controller.ts ***!
+  \***********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmployeesController = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const employees_service_1 = __webpack_require__(/*! ./employees.service */ "./src/employees/employees.service.ts");
+let EmployeesController = class EmployeesController {
+    constructor(employeesService) {
+        this.employeesService = employeesService;
+    }
+    async getEmployees(serviceId) {
+        return this.employeesService.findByService(serviceId);
+    }
+};
+exports.EmployeesController = EmployeesController;
+__decorate([
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('serviceId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], EmployeesController.prototype, "getEmployees", null);
+exports.EmployeesController = EmployeesController = __decorate([
+    (0, common_1.Controller)('employees'),
+    __metadata("design:paramtypes", [typeof (_a = typeof employees_service_1.EmployeesService !== "undefined" && employees_service_1.EmployeesService) === "function" ? _a : Object])
+], EmployeesController);
+
+
+/***/ }),
+
+/***/ "./src/employees/employees.module.ts":
+/*!*******************************************!*\
+  !*** ./src/employees/employees.module.ts ***!
+  \*******************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmployeesModule = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const employees_controller_1 = __webpack_require__(/*! ./employees.controller */ "./src/employees/employees.controller.ts");
+const employees_service_1 = __webpack_require__(/*! ./employees.service */ "./src/employees/employees.service.ts");
+const employee_schema_1 = __webpack_require__(/*! ./schemas/employee.schema */ "./src/employees/schemas/employee.schema.ts");
+const service_schema_1 = __webpack_require__(/*! ../bookings/schemas/service.schema */ "./src/bookings/schemas/service.schema.ts");
+let EmployeesModule = class EmployeesModule {
+};
+exports.EmployeesModule = EmployeesModule;
+exports.EmployeesModule = EmployeesModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            mongoose_1.MongooseModule.forFeature([
+                { name: employee_schema_1.Employee.name, schema: employee_schema_1.EmployeeSchema },
+                { name: service_schema_1.Service.name, schema: service_schema_1.ServiceSchema }
+            ])
+        ],
+        controllers: [employees_controller_1.EmployeesController],
+        providers: [employees_service_1.EmployeesService],
+        exports: [employees_service_1.EmployeesService]
+    })
+], EmployeesModule);
+
+
+/***/ }),
+
+/***/ "./src/employees/employees.service.ts":
+/*!********************************************!*\
+  !*** ./src/employees/employees.service.ts ***!
+  \********************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var EmployeesService_1;
+var _a, _b;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmployeesService = void 0;
+const common_1 = __webpack_require__(/*! @nestjs/common */ "@nestjs/common");
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+const mongoose_2 = __webpack_require__(/*! mongoose */ "mongoose");
+const employee_schema_1 = __webpack_require__(/*! ./schemas/employee.schema */ "./src/employees/schemas/employee.schema.ts");
+const service_schema_1 = __webpack_require__(/*! ../bookings/schemas/service.schema */ "./src/bookings/schemas/service.schema.ts");
+let EmployeesService = EmployeesService_1 = class EmployeesService {
+    constructor(employeeModel, serviceModel) {
+        this.employeeModel = employeeModel;
+        this.serviceModel = serviceModel;
+        this.logger = new common_1.Logger(EmployeesService_1.name);
+    }
+    async findByService(serviceId) {
+        this.logger.debug(`Searching for employees with serviceId: ${serviceId}`);
+        const service = await this.serviceModel.findById(serviceId);
+        if (!service) {
+            this.logger.warn(`Service not found with ID: ${serviceId}`);
+            return [];
+        }
+        this.logger.debug(`Service category: ${service.category}`);
+        const normalizedCategory = service.category.toUpperCase();
+        const employees = await this.employeeModel.find({
+            isActive: true,
+            expertise: {
+                $regex: new RegExp(`^${normalizedCategory}$`, 'i')
+            }
+        }).exec();
+        this.logger.debug(`Found ${employees.length} employees for service category ${service.category}`);
+        this.logger.debug('Employee expertise:', employees.map(e => ({
+            name: e.name,
+            expertise: e.expertise
+        })));
+        return employees;
+    }
+};
+exports.EmployeesService = EmployeesService;
+exports.EmployeesService = EmployeesService = EmployeesService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(employee_schema_1.Employee.name)),
+    __param(1, (0, mongoose_1.InjectModel)(service_schema_1.Service.name)),
+    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, typeof (_b = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _b : Object])
+], EmployeesService);
+
+
+/***/ }),
+
+/***/ "./src/employees/schemas/employee.schema.ts":
+/*!**************************************************!*\
+  !*** ./src/employees/schemas/employee.schema.ts ***!
+  \**************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmployeeSchema = exports.Employee = void 0;
+const mongoose_1 = __webpack_require__(/*! @nestjs/mongoose */ "@nestjs/mongoose");
+let Employee = class Employee {
+};
+exports.Employee = Employee;
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "name", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, unique: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "email", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [String], required: true }),
+    __metadata("design:type", Array)
+], Employee.prototype, "expertise", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Employee.prototype, "imageUrl", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Employee.prototype, "bio", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], Employee.prototype, "isActive", void 0);
+exports.Employee = Employee = __decorate([
+    (0, mongoose_1.Schema)({ timestamps: true })
+], Employee);
+exports.EmployeeSchema = mongoose_1.SchemaFactory.createForClass(Employee);
 
 
 /***/ }),

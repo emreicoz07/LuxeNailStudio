@@ -3,16 +3,17 @@ import Section from '../../components/common/Section';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSpa } from 'react-icons/fa';
 import { GiNails } from 'react-icons/gi';
-import { format, addDays,  } from 'date-fns';
+import { format, addDays, setHours, setMinutes, isBefore,  } from 'date-fns';
 import { HiOutlineCalendar, HiOutlineClock, } from 'react-icons/hi';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { bookingApi,  } from '../../api/bookingApi';
 import { useAuth } from '../../hooks/useAuth';
+import { z } from 'zod';
 
 
-type BookingStep = 'category' | 'service' | 'employee' | 'datetime' | 'summary';
+type BookingStep = 'category' | 'service' | 'datetime' | 'summary';
 
 interface Service {
   id: string;
@@ -25,18 +26,23 @@ interface Service {
   imageUrl?: string;
 }
 
-interface Employee {
-  id: string;
-  name: string;
-  imageUrl?: string;
-  bio?: string;
-  expertise: string[];
-}
+
 
 interface TimeSlot {
   time: string;
   available: boolean;
 }
+
+
+const bookingValidationSchema = z.object({
+  serviceId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid service ID format"),
+  addOnIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid add-on ID format")).optional(),
+  appointmentDate: z.string().datetime("Invalid date and time"),
+  amount: z.number().min(0, "Amount must be positive"),
+  depositAmount: z.number().min(0, "Deposit amount must be positive").optional(),
+  notes: z.string().optional()
+});
+
 
 
 const ScrollIndicator: React.FC = () => (
@@ -72,17 +78,16 @@ const BookingPage: React.FC = () => {
   const [selectedService, setSelectedService] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>('');
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
  
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated,} = useAuth();
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [addOns, setAddOns] = useState<Service[]>([]);
   const addOnsSectionRef = useRef<HTMLDivElement>(null);
   const dateSelectionRef = useRef<HTMLDivElement>(null);
-  const [bookingNotes] = useState('');
-  const [timeSlots, setTimeSlots] = useState<Array<{ time: string; available: boolean }>>([]);
+  const [bookingNotes, setBookingNotes] = useState('');
 
   const categories = [
     {
@@ -116,18 +121,6 @@ const BookingPage: React.FC = () => {
     enabled: !!selectedService,
   });
 
-  const { data: employees, isLoading: isLoadingEmployees } = useQuery({
-    queryKey: ['employees', selectedService],
-    queryFn: async () => {
-      if (!selectedService) return [];
-      console.log('Fetching employees for service:', selectedService);
-      const result = await bookingApi.getEmployees(selectedService);
-      console.log('Employees result:', result);
-      return result;
-    },
-    enabled: !!selectedService,
-  });
-
   useEffect(() => {
     if (addonsData) {
       // Transform the data to ensure it matches the Service interface
@@ -157,15 +150,15 @@ const BookingPage: React.FC = () => {
   };
 
   const handleServiceSelect = (serviceId: string) => {
-    console.log('Selected service ID:', serviceId);
-    setSelectedService(serviceId);
-    setSelectedAddOns([]);
-    setCurrentStep('employee');
-  };
-
-  const handleEmployeeSelect = (employeeId: string) => {
-    setSelectedEmployee(employeeId);
-    setCurrentStep('datetime');
+    // Eğer aynı servis tekrar seçilirse seçimi kaldır
+    if (selectedService === serviceId) {
+      setSelectedService('');
+      setAddOns([]); // Add-ons listesini temizle
+      setSelectedAddOns([]); // Seçili add-onları temizle
+    } else {
+      setSelectedService(serviceId);
+      setSelectedAddOns([]); // Yeni servis seçildiğinde seçili add-onları temizle
+    }
   };
 
   const filteredAddOns = useMemo(() => {
@@ -176,23 +169,29 @@ const BookingPage: React.FC = () => {
     return addOns;
   }, [selectedService, addOns]);
 
-  const generateTimeSlots = async (selectedDate: Date): Promise<TimeSlot[]> => {
-    if (!selectedEmployee) return [];
+  const generateTimeSlots = (selectedDate: Date): TimeSlot[] => {
+    const slots: TimeSlot[] = [];
+    const startHour = 9; // 9 AM
+    const endHour = 17; // 5 PM
+    const now = new Date();
 
-    try {
-      const availableSlots = await bookingApi.getEmployeeAvailability(
-        selectedEmployee,
-        format(selectedDate, 'yyyy-MM-dd')
-      );
+    for (let hour = startHour; hour <= endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = setMinutes(setHours(selectedDate, hour), minute);
+        
+        // Skip times in the past for today
+        if (format(selectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd') && 
+            isBefore(time, now)) {
+          continue;
+        }
 
-      return availableSlots.map((slot: any) => ({
-        time: format(new Date(slot.time), 'h:mm a'),
-        available: slot.available
-      }));
-    } catch (error) {
-      console.error('Error fetching time slots:', error);
-      return [];
+        slots.push({
+          time: format(time, 'h:mm a'),
+          available: true // In a real app, this would come from your backend
+        });
+      }
     }
+    return slots;
   };
 
   const handleDateTimeSubmit = () => {
@@ -205,7 +204,7 @@ const BookingPage: React.FC = () => {
     mutationFn: (bookingData: any) => bookingApi.createBooking(bookingData),
     onError: (error: any) => {
       if (error.response?.data?.errors) {
-        toast.error(error.response.data.errors);
+        setValidationErrors(error.response.data.errors);
       } else {
         toast.error(error.response?.data?.message || 'Failed to create booking');
       }
@@ -214,8 +213,9 @@ const BookingPage: React.FC = () => {
 
   const calculateTotalPrice = () => {
     let total = 0;
+
     // Add service price
-    const selectedServiceData = services?.find((service: Service) => service.id === selectedService);
+    const selectedServiceData = services?.find(s => s.id === selectedService);
     if (selectedServiceData) {
       total += selectedServiceData.price;
     }
@@ -242,7 +242,7 @@ const BookingPage: React.FC = () => {
         return;
       }
 
-      const selectedServiceData = services?.find((service: Service) => service.id === selectedService);
+      const selectedServiceData = services?.find(s => s.id === selectedService);
       if (!selectedServiceData) {
         toast.error('Please select a service');
         return;
@@ -272,7 +272,6 @@ const BookingPage: React.FC = () => {
 
       const bookingData = {
         serviceId: selectedServiceData.id,
-        employeeId: selectedEmployee || undefined,
         addOnIds: selectedAddOns,
         appointmentDate: appointmentDate.toISOString(),
         amount: totalAmount,
@@ -308,6 +307,14 @@ const BookingPage: React.FC = () => {
     }
   };
 
+  const handleContinueToDateTime = () => {
+    setCurrentStep('datetime');
+    // Scroll to top with smooth behavior
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   const handleAddOnSelect = (addOnId: string) => {
     setSelectedAddOns(prev => 
@@ -336,21 +343,13 @@ const BookingPage: React.FC = () => {
     }
   }, [selectedService]);
 
-  useEffect(() => {
-    const loadSlots = async () => {
-      const timeSlots = await generateTimeSlots(selectedDate);
-      setTimeSlots(timeSlots);
-    };
-    loadSlots();
-  }, [selectedDate]);
-
   return (
     <Section className="pt-20 min-h-screen">
       <div className="mx-auto max-w-4xl">
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex justify-between items-center">
-            {['category', 'service', 'employee', 'datetime', 'summary'].map((step, index) => (
+            {['category', 'service', 'datetime', 'summary'].map((step, index) => (
               <div key={step} className="flex items-center">
                 <div className={`
                   w-8 h-8 rounded-full flex items-center justify-center
@@ -360,10 +359,10 @@ const BookingPage: React.FC = () => {
                 `}>
                   {index + 1}
                 </div>
-                {index < 4 && (
+                {index < 3 && (
                   <div className={`
                     w-24 h-1 mx-2
-                    ${index < ['category', 'service', 'employee', 'datetime', 'summary']
+                    ${index < ['category', 'service', 'datetime', 'summary']
                       .indexOf(currentStep) 
                       ? 'bg-primary-300' 
                       : 'bg-gray-200'}
@@ -539,7 +538,7 @@ const BookingPage: React.FC = () => {
               {/* Continue Button */}
               <div className="flex justify-end mt-8">
                 <button
-                  onClick={() => setCurrentStep('employee')}
+                  onClick={handleContinueToDateTime}
                   disabled={!selectedService}
                   className={`px-6 py-2 rounded-lg transition-colors
                     ${selectedService
@@ -549,71 +548,6 @@ const BookingPage: React.FC = () => {
                   Continue
                 </button>
               </div>
-            </motion.div>
-          )}
-
-          {currentStep === 'employee' && selectedService && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center mb-8">
-                <button
-                  onClick={() => setCurrentStep('service')}
-                  className="text-gray-500 transition-colors hover:text-primary-500"
-                >
-                  ← Back
-                </button>
-                <h1 className="flex-1 text-4xl font-bold text-center">
-                  Choose Your Stylist
-                </h1>
-              </div>
-
-              {isLoadingEmployees ? (
-                <div className="flex justify-center">
-                  <div className="w-12 h-12 rounded-full border-b-2 animate-spin border-primary-500" />
-                </div>
-              ) : employees && employees.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2">
-                  {employees.map((employee: Employee) => (
-                    <motion.button
-                      key={employee.id}
-                      onClick={() => handleEmployeeSelect(employee.id)}
-                      className={`p-4 text-left rounded-lg border-2 transition-all duration-300
-                        ${selectedEmployee === employee.id
-                          ? 'border-primary-500 bg-primary-50'
-                          : 'border-gray-200 hover:border-primary-200 bg-white'}`}
-                    >
-                        <div className="space-y-2">
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-semibold">{employee.name}</h3>
-                        </div>
-                        <p className="text-sm text-gray-600">{employee.bio}</p>
-                        <p className="text-xs text-gray-500">Expertise: {employee.expertise.join(', ')}</p>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-600">No stylists are currently available for this service.</p>
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="mt-4 p-4 bg-gray-100 rounded-lg text-left">
-                      <p className="text-sm text-gray-600">Debug Info:</p>
-                      <p className="text-xs text-gray-500">Selected Service ID: {selectedService}</p>
-                      <p className="text-xs text-gray-500">Employees Data: {JSON.stringify(employees)}</p>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setCurrentStep('datetime')}
-                    className="mt-4 px-6 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700"
-                  >
-                    Continue without stylist preference
-                  </button>
-                </div>
-              )}
             </motion.div>
           )}
 
@@ -678,7 +612,7 @@ const BookingPage: React.FC = () => {
                   Select Time
                 </h2>
                 <div className="grid grid-cols-3 gap-3 md:grid-cols-4">
-                  {timeSlots.map((slot: { time: string; available: boolean }) => (
+                  {generateTimeSlots(selectedDate).map((slot) => (
                     <button
                       key={slot.time}
                       onClick={() => setSelectedTime(slot.time)}
@@ -703,11 +637,14 @@ const BookingPage: React.FC = () => {
                 <button
                   onClick={handleDateTimeSubmit}
                   disabled={!selectedTime}
-                  className={`px-6 py-3 rounded-lg font-semibold text-white transition-all duration-300 ${
-                    selectedTime 
+                  className={`
+                    px-6 py-3 rounded-lg font-semibold text-white
+                    transition-all duration-300
+                    ${selectedTime 
                       ? 'bg-primary-500 hover:bg-primary-600' 
                       : 'bg-gray-300 cursor-not-allowed'
-                  }`}
+                    }
+                  `}
                 >
                   Continue to Summary
                 </button>
@@ -734,87 +671,110 @@ const BookingPage: React.FC = () => {
                 </h1>
               </div>
 
-              <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
-                {/* Service Details */}
-                {(() => {
-                  const selectedServiceData = getSelectedService();
-                  return selectedServiceData ? (
-                    <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">Selected Service</h2>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium">{selectedServiceData.name}</h3>
-                            <p className="text-sm text-gray-600">{selectedServiceData.description}</p>
-                            <p className="text-sm text-gray-600">Duration: {selectedServiceData.duration} minutes</p>
-                          </div>
-                          <p className="font-semibold">${selectedServiceData.price}</p>
+              <div className="p-6 space-y-6 bg-white rounded-lg shadow-sm">
+                {/* Selected Service */}
+                <div>
+                  <h2 className="mb-4 text-xl font-semibold">Selected Service</h2>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    {getSelectedService() && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <h3 className="font-medium">{getSelectedService()?.name}</h3>
+                          <span className="text-primary-600">€{getSelectedService()?.price}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{getSelectedService()?.description}</p>
+                        <div className="text-sm text-gray-500">
+                          Duration: {getSelectedService()?.duration} minutes
                         </div>
                       </div>
-                    </div>
-                  ) : null;
-                })()}
+                    )}
+                  </div>
+                </div>
 
-                {/* Selected Employee */}
-                {selectedEmployee && employees && (
-                  <div className="space-y-4">
-                    <h2 className="text-xl font-semibold">Selected Stylist</h2>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      {(() => {
-                        const employee = employees.find((e: { id: string }) => e.id === selectedEmployee);
-                        return employee ? (
-                          <div className="flex items-start gap-4">
-                            {employee.imageUrl && (
-                              <img
-                                src={employee.imageUrl} 
-                                alt={employee.name}
-                                className="w-12 h-12 rounded-full object-cover"
-                              />
-                            )}
-                            <div>
-                              <h3 className="font-medium">{employee.name}</h3>
-                              {employee.bio && <p className="text-sm text-gray-600">{employee.bio}</p>}
+                {/* Selected Add-ons */}
+                {selectedAddOns.length > 0 && (
+                  <div>
+                    <h2 className="mb-4 text-xl font-semibold">Selected Add-ons</h2>
+                    <div className="space-y-3">
+                      {selectedAddOns.map(addonId => {
+                        const addon = addOns?.find((a: Service) => a.id === addonId);
+                        return addon ? (
+                          <div key={addon.id} className="p-4 bg-gray-50 rounded-lg">
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <h3 className="font-medium">{addon.name}</h3>
+                                <span className="text-primary-600">€{addon.price}</span>
+                              </div>
+                              <p className="text-sm text-gray-600">{addon.description}</p>
+                              <div className="text-sm text-gray-500">
+                                Duration: {addon.duration} minutes
+                              </div>
                             </div>
                           </div>
                         ) : null;
-                      })()}
+                      })}
                     </div>
                   </div>
                 )}
 
-                {/* Appointment Time */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Appointment Time</h2>
+                {/* Date and Time */}
+                <div>
+                  <h2 className="mb-4 text-xl font-semibold">Appointment Time</h2>
                   <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <HiOutlineCalendar className="w-5 h-5 text-gray-500" />
-                      <span>{format(selectedDate, 'MMMM d, yyyy')}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <HiOutlineClock className="w-5 h-5 text-gray-500" />
-                      <span>{selectedTime}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <HiOutlineCalendar className="w-5 h-5 text-gray-500" />
+                        <span>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <HiOutlineClock className="w-5 h-5 text-gray-500" />
+                        <span>{selectedTime}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Total Price */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Total Price</h2>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span>Total</span>
-                      <span className="text-xl font-bold">${calculateTotalPrice()}</span>
-                    </div>
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center text-lg font-semibold">
+                    <span>Total Price:</span>
+                    <span className="text-primary-600">€{calculateTotalPrice()}</span>
                   </div>
                 </div>
 
-                {/* Confirm Booking Button */}
-                <div className="flex justify-end pt-6">
+                {/* Notes */}
+                <div>
+                  <h2 className="mb-4 text-xl font-semibold">Additional Notes</h2>
+                  <textarea
+                    value={bookingNotes}
+                    onChange={(e) => setBookingNotes(e.target.value)}
+                    placeholder="Any special requests or notes for your appointment..."
+                    className="p-3 w-full rounded-lg border focus:ring-2 focus:ring-primary-300 focus:border-primary-300"
+                    rows={4}
+                  />
+                </div>
+
+                {/* Booking Button */}
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setCurrentStep('datetime')}
+                    className="px-6 py-2 text-primary-600 hover:text-primary-700"
+                  >
+                    Back
+                  </button>
                   <button
                     onClick={handleBookingSubmit}
-                    className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+                    disabled={createBookingMutation.isPending}
+                    className="flex items-center px-6 py-2 space-x-2 text-white rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
                   >
-                    Confirm Booking
+                    {createBookingMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-white animate-spin border-t-transparent" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <span>Confirm Booking</span>
+                    )}
                   </button>
                 </div>
               </div>
