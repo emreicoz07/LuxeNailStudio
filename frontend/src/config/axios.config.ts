@@ -24,16 +24,8 @@ axiosInstance.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      // Redirect to login if token is missing and the request requires authentication
-      const requiresAuth = ['/bookings', '/profile'].some(path => 
-        config.url?.startsWith(path)
-      );
-      if (requiresAuth) {
-        window.location.href = '/login';
-        return Promise.reject('Authentication required');
-      }
     }
+
     return config;
   },
   (error) => {
@@ -41,20 +33,23 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Add response interceptor
+// Update response interceptor
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      // Clear auth data
-      document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      
-      // Show error message
-      toast.error('Please log in to continue');
-      
-      // Redirect to login
-      window.location.href = '/login';
-      return Promise.reject(error);
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        // Store the current path
+        sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+        
+        // Clear auth data
+        document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        localStorage.removeItem('user');
+        
+        // Redirect to login
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

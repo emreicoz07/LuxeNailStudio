@@ -59,18 +59,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    // Check for token in localStorage on mount
-    const token = localStorage.getItem('token');
-    if (token) {
+    const initializeAuth = async () => {
       try {
-        const decoded = jwtDecode<User>(token);
-        setUser(decoded);
-        setIsAuthenticated(true);
+        // Check for auth token in cookies
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('auth_token='))
+          ?.split('=')[1];
+
+        if (token) {
+          // Get user data from localStorage
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            setUser(userData);
+            setIsAuthenticated(true);
+          } else {
+            // Token var ama user data yoksa, logout işlemi yap
+            await logout();
+          }
+        }
       } catch (error) {
-        console.error('Invalid token:', error);
-        localStorage.removeItem('token');
+        console.error('Auth initialization error:', error);
+        setUser(null);
+        setIsAuthenticated(false);
       }
-    }
+    };
+
+    initializeAuth();
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {

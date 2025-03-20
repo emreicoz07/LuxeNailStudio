@@ -353,6 +353,22 @@ const BookingPage: React.FC = () => {
     loadSlots();
   }, [selectedDate]);
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth_token='))
+        ?.split('=')[1];
+
+      if (!token) {
+        sessionStorage.setItem('redirectAfterLogin', '/appointments');
+        navigate('/login');
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
   return (
     <Section className="mt-8">
       <div className="mx-auto max-w-4xl">
